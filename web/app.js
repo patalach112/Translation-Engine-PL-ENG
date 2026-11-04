@@ -2544,7 +2544,7 @@
     let liveStarting = false;
     let livePreviousTrack = "off";
     let liveTranslator = null;
-    let liveCaptionHideTimer = null;
+    let liveCaptionRenderer = null;
     let liveFallbackToastShown = false;
     let liveStatusKey = "liveCaptionIdle";
     let liveEngine = null;
@@ -2860,13 +2860,15 @@
 
     function displayLiveCaption(text) {
       if (!liveCaptionOverlay || !text) return;
-      liveCaptionOverlay.textContent = text;
-      liveCaptionOverlay.hidden = false;
-      if (liveCaptionHideTimer) clearTimeout(liveCaptionHideTimer);
-      const duration = Math.max(2800, Math.min(6500, text.length * 75));
-      liveCaptionHideTimer = setTimeout(() => {
-        if (liveCaptionOverlay) liveCaptionOverlay.hidden = true;
-      }, duration);
+      const engineApi = typeof globalThis !== "undefined" ? globalThis.LiveCaptionEngine : null;
+      if (!liveCaptionRenderer && engineApi && engineApi.CaptionOverlayRenderer) {
+        liveCaptionRenderer = new engineApi.CaptionOverlayRenderer({ element: liveCaptionOverlay });
+      }
+      if (liveCaptionRenderer) liveCaptionRenderer.show(text);
+      else {
+        liveCaptionOverlay.textContent = text;
+        liveCaptionOverlay.hidden = false;
+      }
     }
 
     function restorePreviousSubtitleTrack() {
@@ -2921,6 +2923,7 @@
             setLiveCaptionStatus(event.input === "microphone-fallback" ? "liveCaptionUsingMicFallback" : "liveCaptionListening", true);
           } else setLiveCaptionStatus("liveCaptionIdle", false);
           if (event.state === "error") {
+            if (liveCaptionRenderer) liveCaptionRenderer.clear();
             if (liveCaptionOverlay) liveCaptionOverlay.hidden = true;
             if (liveCaptionHeard) liveCaptionHeard.hidden = true;
             if (liveCaptionTranscript) liveCaptionTranscript.textContent = "";
@@ -2955,7 +2958,7 @@
       if (liveCaptionOverlay) liveCaptionOverlay.hidden = true;
       if (liveCaptionHeard) liveCaptionHeard.hidden = true;
       if (liveCaptionTranscript) liveCaptionTranscript.textContent = "";
-      if (liveCaptionHideTimer) clearTimeout(liveCaptionHideTimer);
+      if (liveCaptionRenderer) liveCaptionRenderer.clear();
       if (restoreTrack) restorePreviousSubtitleTrack();
       else {
         livePreviousTrack = "off";

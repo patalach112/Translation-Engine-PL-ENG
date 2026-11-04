@@ -19,7 +19,7 @@ const {
   visibleCharLength
 } = require("../web/app.js");
 const { normalizeLang, detectSourceLang } = require("../scripts/headless-translator.js");
-const { LiveCaptionEngine } = require("../web/live-caption-engine.js");
+const { LiveCaptionEngine, CaptionOverlayRenderer, BrowserSpeechRecognitionProvider } = require("../web/live-caption-engine.js");
 
 class FakeSpeechRecognition {
   constructor({ rejectAudioTrack = false } = {}) {
@@ -387,6 +387,51 @@ test("Live speech transcripts translate from Japanese into a selected subtitle l
   assert.equal(result.text, "Cześć, świecie!");
   assert.equal(result.providerUsed, "test-mock");
   await assert.rejects(translateLiveTranscript("hello", "xx", "pl", translator), /Unsupported live caption/);
+});
+
+test("Browser ASR adapter normalizes locales, restarts safely, and renderer owns cue expiry", () => {
+  let recognition;
+  const timers = [];
+  const interim = [];
+  const finals = [];
+  const states = [];
+  const provider = new BrowserSpeechRecognitionProvider({
+    recognitionFactory: () => (recognition = new FakeSpeechRecognition()),
+    schedule: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+    cancelSchedule: (id) => { timers[id - 1] = null; }
+  });
+  provider.start({
+    sourceLang: "ja",
+    onInterim: (event) => interim.push(event),
+    onFinal: (event) => finals.push(event),
+    onState: (state) => states.push(state)
+  });
+  assert.equal(recognition.lang, "ja-JP");
+  recognition.onstart();
+  recognition.emit("こ", false);
+  recognition.emit("こんにちは", true);
+  assert.equal(interim.at(-1).text, "");
+  assert.equal(finals[0].text, "こんにちは");
+  recognition.onend();
+  assert.equal(timers[0].ms, 250);
+  timers[0].fn();
+  assert.equal(recognition.startCalls.length, 2);
+  provider.stop();
+  assert.equal(provider.active, false);
+
+  const element = { hidden: true, textContent: "" };
+  let expire;
+  const renderer = new CaptionOverlayRenderer({
+    element,
+    schedule: (fn) => { expire = fn; return 1; },
+    cancelSchedule() {}
+  });
+  assert.equal(renderer.show("Cześć!", { durationMs: 1234 }), true);
+  assert.equal(element.hidden, false);
+  assert.equal(element.textContent, "Cześć!");
+  expire();
+  assert.equal(element.hidden, true);
+  assert.ok(states.includes("listening"));
 });
 
 test("Live caption engine serializes speech, falls back from tab capture, and cancels stale work", async () => {

@@ -1,10 +1,15 @@
 /*
- * StreamPL live speech pipeline.
+ * StreamPL live speech pipeline (dependency-free ES6).
  *
- * Owns capture lifecycle, recognition restarts, transcript ordering, cancellation,
- * and fallback policy. The ASR provider is intentionally injected: the default
- * browser adapter uses Web Speech Recognition; replacing it does not affect the
- * translation queue, caption renderer, or UI.
+ * Layers are intentionally replaceable:
+ *   AudioCaptureAdapter              obtains shared-tab audio or selects mic fallback
+ *   BrowserSpeechRecognitionProvider adapts Web Speech events to typed callbacks
+ *   SerialTranslationQueue            preserves cue order and cancels stale results
+ *   LiveCaptionEngine                 owns the session/state machine
+ *   CaptionOverlayRenderer            renders translated cues without app coupling
+ *
+ * This is our pipeline/orchestration code, not a trained acoustic model. The
+ * default ASR adapter delegates decoding to the browser's Web Speech service.
  */
 (function (root, factory) {
   const api = factory();
@@ -78,6 +83,166 @@
     }
   }
 
+  class BrowserSpeechRecognitionProvider {
+    constructor({
+      recognitionFactory = createBrowserRecognitionFactory(),
+      schedule = (fn, ms) => setTimeout(fn, ms),
+      cancelSchedule = (id) => clearTimeout(id),
+      maxRestartDelay = 2000
+    } = {}) {
+      this.recognitionFactory = recognitionFactory;
+      this.schedule = schedule;
+      this.cancelSchedule = cancelSchedule;
+      this.maxRestartDelay = maxRestartDelay;
+      this.recognition = null;
+      this.active = false;
+      this.session = 0;
+      this.audioTrack = null;
+      this.restartTimer = null;
+      this.restartDelay = 250;
+      this.callbacks = {};
+      this.sourceLang = "ja";
+    }
+
+    start({ sourceLang = "ja", audioTrack = null, ...callbacks } = {}) {
+      if (this.active) this.stop();
+      this.session += 1;
+      const session = this.session;
+      this.active = true;
+      this.sourceLang = sourceLang;
+      this.audioTrack = audioTrack;
+      this.callbacks = callbacks;
+      this.restartDelay = 250;
+      try {
+        this.recognition = this.recognitionFactory();
+      } catch (error) {
+        this.active = false;
+        throw error;
+      }
+      this.recognition.lang = SPEECH_LOCALES[sourceLang] || sourceLang;
+      this.recognition.continuous = true;
+      this.recognition.interimResults = true;
+      this.recognition.maxAlternatives = 1;
+      this.recognition.onstart = () => {
+        if (!this._isCurrent(session)) return;
+        this.restartDelay = 250;
+        this.callbacks.onState?.("listening", { input: this.audioTrack ? "tab" : "microphone" });
+      };
+      this.recognition.onresult = (event) => this._handleResults(event, session);
+      this.recognition.onerror = (event) => this._handleError(event, session);
+      this.recognition.onend = () => this._scheduleRestart(session);
+      return this._startRecognition(session);
+    }
+
+    _isCurrent(session) {
+      return this.active && session === this.session;
+    }
+
+    _startRecognition(session) {
+      if (!this._isCurrent(session) || !this.recognition) return;
+      try {
+        if (this.audioTrack) this.recognition.start(this.audioTrack);
+        else this.recognition.start();
+        return true;
+      } catch (error) {
+        if (this.audioTrack) {
+          this._switchToMicrophone({ error, session });
+          try {
+            if (this._isCurrent(session)) {
+              this.recognition.start();
+              return true;
+            }
+          } catch (microphoneError) {
+            this._fail({ code: "audio-capture", error: microphoneError }, session);
+            return false;
+          }
+          return false;
+        }
+        this._fail({ code: "recognition-start-failed", error }, session);
+        return false;
+      }
+    }
+
+    _handleResults(event, session) {
+      if (!this._isCurrent(session)) return;
+      const interim = [];
+      for (let index = event.resultIndex || 0; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const text = result && result[0] && String(result[0].transcript || "").trim();
+        if (!text) continue;
+        if (result.isFinal) this.callbacks.onFinal?.({ text, sourceLang: this.sourceLang });
+        else interim.push(text);
+      }
+      this.callbacks.onInterim?.({ text: interim.join(" "), sourceLang: this.sourceLang });
+    }
+
+    _handleError(event, session) {
+      if (!this._isCurrent(session)) return;
+      const code = event && event.error ? event.error : "unknown";
+      if (code === "aborted") return;
+      if (code === "no-speech") {
+        this.callbacks.onState?.("no-speech", { input: this.audioTrack ? "tab" : "microphone" });
+        return;
+      }
+      if (code === "audio-capture" && this.audioTrack) {
+        this._switchToMicrophone({ error: event, session });
+        return;
+      }
+      this._fail({ code, error: event }, session);
+    }
+
+    _switchToMicrophone({ error, session }) {
+      if (!this._isCurrent(session) || !this.audioTrack) return false;
+      this.audioTrack = null;
+      this.callbacks.onMicFallback?.({ error });
+      return true;
+    }
+
+    fallbackToMicrophone() {
+      if (!this.active || !this.audioTrack) return false;
+      const session = this.session;
+      if (!this._switchToMicrophone({ session })) return false;
+      try { this.recognition?.stop(); } catch (_error) { /* let restart/backoff recover */ }
+      this._scheduleRestart(session);
+      return true;
+    }
+
+    _scheduleRestart(session) {
+      if (!this._isCurrent(session) || this.restartTimer !== null) return;
+      const delay = this.restartDelay;
+      this.restartDelay = Math.min(this.maxRestartDelay, Math.round(this.restartDelay * 1.6));
+      this.restartTimer = this.schedule(() => {
+        this.restartTimer = null;
+        this._startRecognition(session);
+      }, delay);
+    }
+
+    _fail(details, session) {
+      if (!this._isCurrent(session)) return;
+      this.callbacks.onError?.(details);
+      this.stop();
+    }
+
+    stop() {
+      this.active = false;
+      this.session += 1;
+      if (this.restartTimer !== null) {
+        this.cancelSchedule(this.restartTimer);
+        this.restartTimer = null;
+      }
+      const recognition = this.recognition;
+      this.recognition = null;
+      this.audioTrack = null;
+      if (recognition) {
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        recognition.onstart = null;
+        try { recognition.stop(); } catch (_error) { /* already stopped */ }
+      }
+    }
+  }
+
   class SerialTranslationQueue {
     constructor({ translate, onCaption, onError, maxPending = 24 }) {
       this.translate = translate;
@@ -117,9 +282,40 @@
     }
   }
 
+  class CaptionOverlayRenderer {
+    constructor({ element, schedule = (fn, ms) => setTimeout(fn, ms), cancelSchedule = (id) => clearTimeout(id) } = {}) {
+      this.element = element || null;
+      this.schedule = schedule;
+      this.cancelSchedule = cancelSchedule;
+      this.timer = null;
+    }
+
+    show(text, { durationMs } = {}) {
+      if (!this.element || !String(text || "").trim()) return false;
+      this.clear();
+      this.element.textContent = text;
+      this.element.hidden = false;
+      const duration = durationMs || Math.max(2800, Math.min(6500, String(text).length * 75));
+      this.timer = this.schedule(() => {
+        this.timer = null;
+        if (this.element) this.element.hidden = true;
+      }, duration);
+      return true;
+    }
+
+    clear() {
+      if (this.timer !== null) {
+        this.cancelSchedule(this.timer);
+        this.timer = null;
+      }
+      if (this.element) this.element.hidden = true;
+    }
+  }
+
   class LiveCaptionEngine {
     constructor({
       recognitionFactory = createBrowserRecognitionFactory(),
+      speechProviderFactory,
       mediaDevices = typeof navigator !== "undefined" ? navigator.mediaDevices : null,
       translate = async (segment) => ({ text: segment.text, providerUsed: "identity" }),
       onStatus = () => {},
@@ -131,25 +327,26 @@
       cancelSchedule = (id) => clearTimeout(id),
       maxPendingTranslations = 24
     } = {}) {
-      this.recognitionFactory = recognitionFactory;
-      this.capture = new AudioCaptureAdapter(mediaDevices, { onWarning });
-      this.translate = translate;
+      this.mediaDevices = mediaDevices;
+      this.schedule = schedule;
+      this.cancelSchedule = cancelSchedule;
       this.onStatus = onStatus;
       this.onInterim = onInterim;
       this.onCaption = onCaption;
       this.onError = onError;
       this.onWarning = onWarning;
-      this.schedule = schedule;
-      this.cancelSchedule = cancelSchedule;
+      this.capture = new AudioCaptureAdapter(mediaDevices, { onWarning });
+      this.speechProviderFactory = speechProviderFactory || (() => new BrowserSpeechRecognitionProvider({
+        recognitionFactory, schedule, cancelSchedule
+      }));
+      this.speechProvider = null;
+      this.translate = translate;
       this.state = "idle";
       this.session = 0;
-      this.recognition = null;
-      this.audioTrack = null;
-      this.restartTimer = null;
-      this.restartDelay = 250;
       this.sourceLang = "ja";
       this.targetLang = "pl";
       this.audioSource = "tab";
+      this.audioTrack = null;
       this.fellBackToMicrophone = false;
       this.lastFinalText = "";
       this.lastFinalAt = 0;
@@ -177,19 +374,12 @@
       this.sourceLang = sourceLang;
       this.targetLang = targetLang;
       this.audioSource = audioSource;
-      this.restartDelay = 250;
       this.lastFinalText = "";
       this.lastFinalAt = 0;
       const queueEpoch = this.translationQueue.reset();
       this._setState("starting");
 
-      let capture;
-      try {
-        capture = await this.capture.open(audioSource);
-      } catch (error) {
-        this._fail(session, { code: "audio-capture-failed", error });
-        return false;
-      }
+      const capture = await this.capture.open(audioSource);
       if (session !== this.session) {
         this.capture.close();
         return false;
@@ -200,79 +390,53 @@
         const capturedTrack = this.audioTrack;
         capturedTrack.addEventListener("ended", () => {
           if (session === this.session && this.audioTrack === capturedTrack) {
-            this._fallbackToMicrophone(session);
+            if (this.speechProvider) this.speechProvider.fallbackToMicrophone();
+            else this._fallbackToMicrophone(session);
           }
         }, { once: true });
       }
 
       try {
-        this.recognition = this.recognitionFactory();
+        this.speechProvider = this.speechProviderFactory();
+        const providerStarted = this.speechProvider.start({
+          sourceLang,
+          audioTrack: this.audioTrack,
+          onState: (state, details) => {
+            if (session !== this.session) return;
+            this._setState(state, details);
+          },
+          onInterim: (event) => {
+            if (session === this.session) this.onInterim(event);
+          },
+          onFinal: (segment) => {
+            if (session === this.session) this._enqueueFinal(segment, queueEpoch, session);
+          },
+          onMicFallback: () => {
+            if (session === this.session) this._fallbackToMicrophone(session);
+          },
+          onError: (details) => {
+            if (session === this.session) this._fail(session, details);
+          }
+        });
+        if (!providerStarted || session !== this.session) return false;
+        this._setState("listening", {
+          input: this.fellBackToMicrophone ? "microphone-fallback" : audioSource
+        });
+        return true;
       } catch (error) {
-        this.capture.close();
-        this._fail(session, { code: error.code || "recognition-unavailable", error });
+        this._fail(session, { code: error.code || "recognition-start-failed", error });
         return false;
       }
-      this._configureRecognition(this.recognition, session, queueEpoch);
-      this._setState("listening", {
-        input: this.fellBackToMicrophone ? "microphone-fallback" : audioSource
-      });
-      this._startRecognition(session);
-      return true;
     }
 
-    _configureRecognition(recognition, session, queueEpoch) {
-      recognition.lang = SPEECH_LOCALES[this.sourceLang] || this.sourceLang;
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-      recognition.onstart = () => {
-        if (session !== this.session || !this.isActive) return;
-        this.restartDelay = 250;
-        this._setState("listening", {
-          input: this.fellBackToMicrophone ? "microphone-fallback" : this.audioSource
-        });
-      };
-      recognition.onresult = (event) => this._consumeResults(event, session, queueEpoch);
-      recognition.onerror = (event) => this._consumeError(event, session);
-      recognition.onend = () => this._scheduleRestart(session);
-    }
-
-    _consumeResults(event, session, queueEpoch) {
-      if (session !== this.session || !this.isActive) return;
-      const interim = [];
-      for (let index = event.resultIndex || 0; index < event.results.length; index += 1) {
-        const result = event.results[index];
-        const text = result && result[0] && String(result[0].transcript || "").trim();
-        if (!text) continue;
-        if (!result.isFinal) {
-          interim.push(text);
-          continue;
-        }
-        this.onInterim({ text, final: true, sourceLang: this.sourceLang });
-        const now = Date.now();
-        if (text === this.lastFinalText && now - this.lastFinalAt < 1200) continue;
-        this.lastFinalText = text;
-        this.lastFinalAt = now;
-        this.translationQueue.enqueue({ text, sourceLang: this.sourceLang, targetLang: this.targetLang }, queueEpoch);
-      }
-      if (interim.length) {
-        this.onInterim({ text: interim.join(" "), final: false, sourceLang: this.sourceLang });
-      }
-    }
-
-    _consumeError(event, session) {
-      if (session !== this.session || !this.isActive) return;
-      const code = event && event.error ? event.error : "unknown";
-      if (code === "aborted") return;
-      if (code === "no-speech") {
-        this._setState("no-speech", { input: this.fellBackToMicrophone ? "microphone-fallback" : this.audioSource });
-        return;
-      }
-      if (code === "audio-capture" && this.audioTrack) {
-        this._fallbackToMicrophone(session);
-        return;
-      }
-      this._fail(session, { code, error: event });
+    _enqueueFinal(segment, queueEpoch, session) {
+      const text = String(segment.text || "").trim();
+      if (!text || session !== this.session) return;
+      const now = Date.now();
+      if (text === this.lastFinalText && now - this.lastFinalAt < 1200) return;
+      this.lastFinalText = text;
+      this.lastFinalAt = now;
+      this.translationQueue.enqueue({ ...segment, targetLang: this.targetLang }, queueEpoch);
     }
 
     _fallbackToMicrophone(session) {
@@ -282,36 +446,6 @@
       this.capture.close();
       this.onWarning({ code: "microphone-fallback" });
       this._setState("listening", { input: "microphone-fallback" });
-      // The recognizer's end event restarts it using the microphone path.
-    }
-
-    _startRecognition(session) {
-      if (session !== this.session || !this.isActive || !this.recognition) return;
-      try {
-        if (this.audioTrack) this.recognition.start(this.audioTrack);
-        else this.recognition.start();
-      } catch (error) {
-        if (this.audioTrack) {
-          this._fallbackToMicrophone(session);
-          try {
-            if (this.recognition) this.recognition.start();
-          } catch (micError) {
-            this._fail(session, { code: "audio-capture", error: micError });
-          }
-        } else {
-          this._fail(session, { code: "recognition-start-failed", error });
-        }
-      }
-    }
-
-    _scheduleRestart(session) {
-      if (session !== this.session || !this.isActive || this.restartTimer !== null) return;
-      const delay = this.restartDelay;
-      this.restartDelay = Math.min(2000, Math.round(this.restartDelay * 1.6));
-      this.restartTimer = this.schedule(() => {
-        this.restartTimer = null;
-        this._startRecognition(session);
-      }, delay);
     }
 
     _fail(session, details) {
@@ -322,21 +456,10 @@
     }
 
     stop() {
-      if (this.restartTimer !== null) {
-        this.cancelSchedule(this.restartTimer);
-        this.restartTimer = null;
-      }
       this.session += 1;
       this.translationQueue.reset();
-      const recognition = this.recognition;
-      this.recognition = null;
-      if (recognition) {
-        recognition.onresult = null;
-        recognition.onerror = null;
-        recognition.onend = null;
-        recognition.onstart = null;
-        try { recognition.stop(); } catch (_error) { /* already stopped */ }
-      }
+      if (this.speechProvider) this.speechProvider.stop();
+      this.speechProvider = null;
       this.capture.close();
       this.audioTrack = null;
       this.fellBackToMicrophone = false;
@@ -348,7 +471,9 @@
     SPEECH_LOCALES,
     createBrowserRecognitionFactory,
     AudioCaptureAdapter,
+    BrowserSpeechRecognitionProvider,
     SerialTranslationQueue,
+    CaptionOverlayRenderer,
     LiveCaptionEngine
   };
 });
