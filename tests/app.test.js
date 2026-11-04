@@ -28,7 +28,8 @@ const {
   GlossaryLexicon,
   TranscriptOverlapFilter,
   loadLocalWhisperPipeline,
-  resampleAudioLinear
+  resampleAudioLinear,
+  conditionWhisperAudio
 } = require("../web/live-caption-engine.js");
 
 class FakeSpeechRecognition {
@@ -362,7 +363,8 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /id="live-caption-glossary"/);
   assert.match(html, /id="live-model-progress"/);
   assert.match(html, /id="btn-live-subtitle-file"/);
-  assert.match(html, /value="onnx-community\/whisper-tiny"/);
+  assert.match(html, /value="onnx-community\/whisper-base"/);
+  assert.match(html, /value="onnx-community\/whisper-small"/);
   assert.match(html, /\.ass,\.ssa/);
   assert.match(html, /live-caption-engine\.js" defer/);
   assert.ok(fs.existsSync(path.join(__dirname, "../web/live-audio-worklet.js")));
@@ -407,6 +409,59 @@ test("Live speech transcripts translate from Japanese into a selected subtitle l
   await assert.rejects(translateLiveTranscript("hello", "xx", "pl", translator), /Unsupported live caption/);
 });
 
+test("OpenAI-compatible translation prompt localizes naturally and includes live context", async () => {
+  const originalFetch = global.fetch;
+  let requestBody;
+  try {
+    global.fetch = async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return { ok: true, async json() { return { choices: [{ message: { content: "To było na YouTube Shorts." } }] }; } };
+    };
+    const translator = new ClientTranslator({
+      provider: "openai_compat",
+      customEndpoint: "https://translation.example/v1",
+      llmModel: "test-model"
+    });
+    const result = await translator.translateSegment("I watched ⟦T0⟧.", "en", "pl", {
+      activeRegister: "default",
+      history: [{ cueIndex: 1, sourceText: "We talked about the video.", translatedText: "Rozmawialiśmy o filmie." }]
+    });
+    assert.equal(result, "To było na YouTube Shorts.");
+    assert.match(requestBody.messages[0].content, /meaning and speaker intent, not word-for-word/i);
+    assert.match(requestBody.messages[0].content, /⟦T0⟧/);
+    assert.match(requestBody.messages[1].content, /Recent 5-cue context/);
+    assert.match(requestBody.messages[1].content, /Rozmawialiśmy o filmie/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("Natural live translation preserves platform names and carries recent conversational context", async () => {
+  const calls = [];
+  const translator = {
+    lastUsedProvider: "context-mock",
+    async translateSegment(text, source, target, context) {
+      assert.equal(source, "en");
+      assert.equal(target, "pl");
+      assert.match(text, /⟦T0⟧/);
+      calls.push({ text, context });
+      return "Widziałem to na ⟦T0⟧.";
+    }
+  };
+  const first = await translateLiveTranscript("I watched it on YouTube Shorts.", "en", "pl", translator);
+  const second = await translateLiveTranscript("Everyone is sharing it on YouTube Shorts.", "en", "pl", translator);
+  assert.equal(first.text, "Widziałem to na YouTube Shorts.");
+  assert.equal(second.text, "Widziałem to na YouTube Shorts.");
+  assert.equal(calls[0].context.history.length, 0);
+  assert.equal(calls[1].context.history.length, 1);
+  assert.equal(calls[1].context.history[0].sourceText, "I watched it on YouTube Shorts.");
+
+  const custom = await translateLiveTranscript("YouTube Shorts", "en", "pl", translator, [
+    { source: "YouTube Shorts", target: "Shorty YouTube" }
+  ]);
+  assert.equal(custom.text, "Widziałem to na Shorty YouTube.");
+});
+
 test("Live translation protects custom anime glossary terms and Whisper overlap is removed", async () => {
   const translator = {
     lastUsedProvider: "test-mock",
@@ -431,6 +486,17 @@ test("Live translation protects custom anime glossary terms and Whisper overlap 
   assert.equal(overlap.push("everyone, welcome back"), "welcome back");
   assert.equal(overlap.push("sword attack"), "sword attack");
   assert.deepEqual(Array.from(resampleAudioLinear(new Float32Array([0, 1, 0, -1]), 32000, 16000)), [0, 0]);
+});
+
+test("Whisper audio conditioning removes DC offset, levels quiet voice, and limits peaks", () => {
+  const input = new Float32Array([0.10, 0.11, 0.09, 0.10]);
+  const conditioned = conditionWhisperAudio(input);
+  const mean = conditioned.reduce((sum, sample) => sum + sample, 0) / conditioned.length;
+  const peak = Math.max(...conditioned.map(Math.abs));
+  assert.ok(Math.abs(mean) < 1e-6);
+  assert.ok(peak > 0.02, "quiet speech should receive modest gain");
+  assert.ok(peak <= 0.95);
+  assert.deepEqual(Array.from(conditionWhisperAudio(new Float32Array(16))), Array(16).fill(0));
 });
 
 test("Whisper pipeline uses a quantized browser runtime and caches the model", async () => {
@@ -470,6 +536,8 @@ test("Local Whisper provider loads on-device ASR and emits timestamp-window tran
         assert.equal(options.sampling_rate, 16000);
         assert.equal(options.language, "japanese");
         assert.equal(options.task, "transcribe");
+        assert.equal(options.return_timestamps, true);
+        assert.equal(options.num_beams, 2);
         inferenceCount += 1;
         return { text: inferenceCount === 1 ? "こんにちは世界" : "こんにちは世界今日はいい天気です" };
       };
@@ -556,6 +624,8 @@ test("Audio capture adapter obtains tab or mono microphone streams for local ASR
   const microphoneCapture = await adapter.open("microphone", { captureMicrophone: true });
   assert.equal(microphoneCapture.audioTrack, track);
   assert.equal(microphoneOptions.audio.channelCount, 1);
+  assert.equal(microphoneOptions.audio.echoCancellation, false);
+  assert.equal(microphoneOptions.audio.noiseSuppression, false);
   adapter.close();
 });
 

@@ -204,7 +204,7 @@
       btnCreatorStudio: "Creator Studio",
       subtitlesLabel: "Subtitles:",
       liveCaptionHeading: "Live audio captions",
-      liveCaptionDescription: "For best sync, translate an anime subtitle file. If none exists, use local live speech captions.",
+      liveCaptionDescription: "For best sync, translate an anime subtitle file. Otherwise Whisper transcribes overlapping chunks, so live captions may arrive with a short delay.",
       liveCaptionIdle: "Not listening",
       liveCaptionStarting: "Starting audio capture…",
       liveCaptionListening: "Listening and translating…",
@@ -219,12 +219,13 @@
       asrLocalWhisper: "Local Whisper (downloads model)",
       asrBrowser: "Browser speech service",
       asrModelLabel: "Local model",
-      asrModelTiny: "Whisper Tiny — faster, lower accuracy",
-      asrModelBase: "Whisper Base — slower, better accuracy",
+      asrModelTiny: "Whisper Tiny — faster, lighter",
+      asrModelBase: "Whisper Base — recommended balance",
+      asrModelSmall: "Whisper Small — higher accuracy, heavier",
       btnLoadSubtitleForTranslation: "Best sync: translate an anime subtitle file",
       glossaryLabel: "Anime glossary (source = preferred subtitle text)",
       glossaryPlaceholder: "猫 = neko\nさくら = Sakura",
-      glossaryHelp: "One term per line. Glossary matches are protected from machine translation.",
+      glossaryHelp: "One term per line. Common platform names are preserved automatically; custom glossary matches are protected from translation.",
       liveCaptionLoadingModel: "Downloading/loading local speech model…",
       liveCaptionTranscribing: "Local model is transcribing…",
       liveCaptionModelReady: "Local speech model ready (cached in this browser).",
@@ -233,7 +234,7 @@
       audioSourceMic: "Microphone / speakers",
       btnStartListening: "Start live captions",
       btnStopListening: "Stop live captions",
-      liveCaptionPrivacy: "Load the anime into this player. Local Whisper downloads a model once and transcribes audio on-device; only transcript text goes to the translation provider. Browser speech mode may send audio to its online service. Tab capture requires sharing this tab; microphone mode hears speakers.",
+      liveCaptionPrivacy: "For best recognition, share this tab's audio. Microphone mode uses raw audio so playback is not suppressed by echo cancellation; use clear, close speakers. Whisper Base is the balanced default; Small needs more download and memory. Local ASR stays on-device; only transcript text goes to translation. Browser speech mode may send audio to its online service.",
       liveCaptionUnsupported: "Live speech recognition is not available in this browser. Try a current version of Chrome or Edge.",
       liveCaptionNetworkError: "The browser speech-recognition service could not be reached. Check your internet connection and try again.",
       liveCaptionAudioError: "No usable audio input was found. Check the shared tab or microphone permission.",
@@ -303,7 +304,7 @@
       btnCreatorStudio: "Panel Twórcy",
       subtitlesLabel: "Napisy:",
       liveCaptionHeading: "Napisy na żywo z dźwięku",
-      liveCaptionDescription: "Najlepsza synchronizacja: przetłumacz plik napisów anime. Jeśli go nie ma, użyj lokalnego rozpoznawania mowy.",
+      liveCaptionDescription: "Najlepsza synchronizacja: przetłumacz plik napisów anime. W przeciwnym razie Whisper transkrybuje nakładające się fragmenty, więc napisy na żywo mogą być lekko opóźnione.",
       liveCaptionIdle: "Nie nasłuchuje",
       liveCaptionStarting: "Uruchamianie przechwytywania dźwięku…",
       liveCaptionListening: "Nasłuchiwanie i tłumaczenie…",
@@ -318,12 +319,13 @@
       asrLocalWhisper: "Lokalny Whisper (pobiera model)",
       asrBrowser: "Usługa mowy przeglądarki",
       asrModelLabel: "Model lokalny",
-      asrModelTiny: "Whisper Tiny — szybszy, mniej dokładny",
-      asrModelBase: "Whisper Base — wolniejszy, dokładniejszy",
+      asrModelTiny: "Whisper Tiny — szybszy, lżejszy",
+      asrModelBase: "Whisper Base — zalecany kompromis",
+      asrModelSmall: "Whisper Small — dokładniejszy, bardziej wymagający",
       btnLoadSubtitleForTranslation: "Najlepsza synchronizacja: przetłumacz plik napisów anime",
       glossaryLabel: "Słownik anime (źródło = tekst napisów)",
       glossaryPlaceholder: "猫 = neko\nさくら = Sakura",
-      glossaryHelp: "Jeden termin w wierszu. Dopasowane hasła są chronione przed tłumaczeniem maszynowym.",
+      glossaryHelp: "Jeden termin w wierszu. Popularne nazwy platform są zachowywane automatycznie; własne hasła są chronione przed tłumaczeniem.",
       liveCaptionLoadingModel: "Pobieranie/ładowanie lokalnego modelu mowy…",
       liveCaptionTranscribing: "Lokalny model transkrybuje…",
       liveCaptionModelReady: "Lokalny model mowy jest gotowy (zapisany w tej przeglądarce).",
@@ -332,7 +334,7 @@
       audioSourceMic: "Mikrofon / głośniki",
       btnStartListening: "Włącz napisy na żywo",
       btnStopListening: "Zatrzymaj napisy na żywo",
-      liveCaptionPrivacy: "Wczytaj anime do tego odtwarzacza. Lokalny Whisper pobiera model i rozpoznaje mowę na urządzeniu; do dostawcy tłumaczeń wysyłany jest tylko tekst. Tryb rozpoznawania przeglądarki może wysyłać dźwięk do usługi online. Dźwięk karty wymaga jej udostępnienia; mikrofon nasłuchuje głośników.",
+      liveCaptionPrivacy: "Najlepsze rozpoznawanie daje udostępnienie dźwięku tej karty. Mikrofon używa surowego dźwięku, aby redukcja echa nie wyciszyła odtwarzania; ustaw głośniki blisko i wyraźnie. Whisper Base to zalecany kompromis; Small wymaga więcej pobierania i pamięci. Lokalny ASR działa na urządzeniu, a do tłumaczenia wysyłany jest tylko tekst. Usługa mowy przeglądarki może wysyłać dźwięk online.",
       liveCaptionUnsupported: "Rozpoznawanie mowy na żywo nie jest dostępne w tej przeglądarce. Użyj aktualnej wersji Chrome lub Edge.",
       liveCaptionNetworkError: "Nie można połączyć się z usługą rozpoznawania mowy przeglądarki. Sprawdź internet i spróbuj ponownie.",
       liveCaptionAudioError: "Brak działającego źródła dźwięku. Sprawdź udostępnioną kartę lub dostęp do mikrofonu.",
@@ -1772,6 +1774,7 @@
       this.llmModel = (settings.llmModel || "gpt-4o-mini").trim();
       this.onFallback = typeof settings.onFallback === "function" ? settings.onFallback : null;
       this.lastUsedProvider = "offline-smart-dictionary";
+      this.liveHistory = [];
 
       // Per-batch circuit breakers so rate-limited/offline endpoints fail fast once
       this._circuit = {
@@ -1978,8 +1981,9 @@
               {
                 role: "system",
                 content:
-                  `Translate subtitle from ${sourceLang.toUpperCase()} to ${targetLang.toUpperCase()}. ` +
-                  `Preserve tokens like ⟦T0⟧ untouched. ${registerNote} Return ONLY the translated line.`
+                  `Localize subtitles from ${sourceLang.toUpperCase()} to ${targetLang.toUpperCase()}. ` +
+                  `Translate meaning and speaker intent, not word-for-word; use natural, concise spoken language and adapt idioms instead of calquing them. ` +
+                  `Keep brand/product names and all tokens like ⟦T0⟧ exactly unchanged. Do not invent details. ${registerNote} Return ONLY the localized line.`
               },
               {
                 role: "user",
@@ -2181,6 +2185,33 @@
     }
   }
 
+  const LIVE_BRAND_TERMS = Object.freeze([
+    { source: "YouTube Shorts", target: "YouTube Shorts" },
+    { source: "YouTube Short", target: "YouTube Shorts" },
+    { source: "Instagram Reels", target: "Instagram Reels" },
+    { source: "YouTube Premium", target: "YouTube Premium" },
+    { source: "YouTube Music", target: "YouTube Music" },
+    { source: "Nintendo Switch", target: "Nintendo Switch" },
+    { source: "PlayStation", target: "PlayStation" },
+    { source: "TikTok", target: "TikTok" },
+    { source: "Discord", target: "Discord" },
+    { source: "Twitch", target: "Twitch" },
+    { source: "Spotify", target: "Spotify" },
+    { source: "Netflix", target: "Netflix" },
+    { source: "YouTube", target: "YouTube" }
+  ]);
+
+  function mergeLiveGlossaryEntries(customEntries = []) {
+    const entries = new Map();
+    for (const entry of LIVE_BRAND_TERMS) entries.set(entry.source.toLowerCase(), entry);
+    for (const entry of customEntries || []) {
+      const source = String(entry && entry.source || "").trim();
+      const target = String(entry && entry.target || "").trim();
+      if (source && target) entries.set(source.toLowerCase(), { source, target });
+    }
+    return Array.from(entries.values());
+  }
+
   async function translateLiveTranscript(text, sourceLang, targetLang, translator, glossaryEntries = []) {
     const source = String(sourceLang || "").trim();
     const target = String(targetLang || "").trim();
@@ -2190,19 +2221,28 @@
     const transcript = String(text || "").trim();
     if (!transcript) return { text: "", providerUsed: "none" };
     const glossaryApi = typeof globalThis !== "undefined" ? globalThis.LiveCaptionEngine : null;
+    const effectiveEntries = mergeLiveGlossaryEntries(glossaryEntries);
     const glossary = glossaryApi && glossaryApi.GlossaryLexicon
-      ? new glossaryApi.GlossaryLexicon(glossaryEntries)
+      ? new glossaryApi.GlossaryLexicon(effectiveEntries)
       : null;
     const protectedTerms = glossary ? glossary.protect(transcript) : { text: transcript, tokens: [] };
     const shield = TokenShield.mask(protectedTerms.text);
     const engine = translator || new ClientTranslator();
-    const maskedTranslation = await engine.translateSegment(shield.cleanText, source, target, {
-      activeRegister: "default"
-    });
+    if (!Array.isArray(engine.liveHistory)) engine.liveHistory = [];
+    const context = { activeRegister: "default", history: engine.liveHistory.slice(-5) };
+    const maskedTranslation = await engine.translateSegment(shield.cleanText, source, target, context);
     const restoredTranslation = TokenShield.unmask(maskedTranslation, shield);
     const finalTranslation = glossary ? glossary.restore(restoredTranslation, protectedTerms) : restoredTranslation;
+    const formatted = TextFormatter.formatCueText(finalTranslation, { maxCpl: 42, lang: target });
+    engine.liveCueIndex = (engine.liveCueIndex || 0) + 1;
+    engine.liveHistory.push({
+      cueIndex: engine.liveCueIndex,
+      sourceText: transcript,
+      translatedText: formatted
+    });
+    if (engine.liveHistory.length > 5) engine.liveHistory.shift();
     return {
-      text: TextFormatter.formatCueText(finalTranslation, { maxCpl: 42, lang: target }),
+      text: formatted,
       providerUsed: engine.lastUsedProvider || "unknown"
     };
   }
@@ -3087,7 +3127,7 @@
         targetLang: liveTargetLanguageSelect?.value || "pl",
         audioSource: liveAudioSourceSelect?.value || "tab",
         asrProvider: liveAsrProviderSelect?.value || "local-whisper",
-        modelId: liveAsrModelSelect?.value || "onnx-community/whisper-tiny"
+        modelId: liveAsrModelSelect?.value || "onnx-community/whisper-base"
       });
       liveStarting = false;
       if (!started && liveEngine.state !== "error") restorePreviousSubtitleTrack();

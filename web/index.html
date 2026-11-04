@@ -207,8 +207,9 @@
               <label>
                 <span data-i18n="asrModelLabel">Local model</span>
                 <select id="live-asr-model" class="language-picker" aria-label="Local speech model">
-                  <option value="onnx-community/whisper-tiny" data-i18n="asrModelTiny">Whisper Tiny — faster, lower accuracy</option>
-                  <option value="onnx-community/whisper-base" data-i18n="asrModelBase">Whisper Base — slower, better accuracy</option>
+                  <option value="onnx-community/whisper-base" data-i18n="asrModelBase">Whisper Base — recommended balance</option>
+                  <option value="onnx-community/whisper-tiny" data-i18n="asrModelTiny">Whisper Tiny — faster, lighter</option>
+                  <option value="onnx-community/whisper-small" data-i18n="asrModelSmall">Whisper Small — higher accuracy, heavier</option>
                 </select>
               </label>
               <button type="button" class="btn btn-primary" id="btn-live-captions" data-i18n="btnStartListening">Start live captions</button>

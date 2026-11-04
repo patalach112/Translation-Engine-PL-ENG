@@ -82,7 +82,7 @@
         throw error;
       }
       this.stream = await this.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         video: false
       });
       this.audioTrack = this.stream.getAudioTracks()[0] || null;
@@ -284,7 +284,7 @@
   }
 
   async function loadLocalWhisperPipeline({
-    modelId = "onnx-community/whisper-tiny",
+    modelId = "onnx-community/whisper-base",
     runtimeLoader = loadTransformersRuntime,
     onProgress = () => {}
   } = {}) {
@@ -335,6 +335,27 @@
       output[index] = input[left] * (1 - fraction) + input[right] * fraction;
     }
     return output;
+  }
+
+  function conditionWhisperAudio(input, { targetRms = 0.08, maxGain = 3, maxPeak = 0.95 } = {}) {
+    if (!(input instanceof Float32Array) || !input.length) return new Float32Array(0);
+    let mean = 0;
+    for (const sample of input) mean += Number.isFinite(sample) ? sample : 0;
+    mean /= input.length;
+    const centered = new Float32Array(input.length);
+    let squareSum = 0;
+    let peak = 0;
+    for (let index = 0; index < input.length; index += 1) {
+      const sample = (Number.isFinite(input[index]) ? input[index] : 0) - mean;
+      centered[index] = sample;
+      squareSum += sample * sample;
+      peak = Math.max(peak, Math.abs(sample));
+    }
+    const rms = Math.sqrt(squareSum / input.length);
+    if (rms < 1e-7 || peak < 1e-7) return centered;
+    const gain = Math.min(maxGain, targetRms / rms, maxPeak / peak);
+    for (let index = 0; index < centered.length; index += 1) centered[index] *= gain;
+    return centered;
   }
 
   class TranscriptOverlapFilter {
@@ -451,12 +472,12 @@
 
   class LocalWhisperSpeechProvider {
     constructor({
-      modelId = "onnx-community/whisper-tiny",
+      modelId = "onnx-community/whisper-base",
       pipelineLoader = loadLocalWhisperPipeline,
       runtimeLoader = loadTransformersRuntime,
       audioSourceFactory = (options) => new AudioWorkletPcmSource(options),
-      chunkSeconds = 5,
-      overlapSeconds = 0.8,
+      chunkSeconds = 8,
+      overlapSeconds = 1.2,
       maxBufferedSeconds = 18
     } = {}) {
       this.modelId = modelId;
@@ -577,16 +598,26 @@
       this.processing = true;
       this.callbacks.onState("transcribing", { input: "local-whisper", modelId: this.modelId });
       try {
-        const waveform = resampleAudioLinear(audio, this.sampleRate, 16000);
+        const waveform = conditionWhisperAudio(resampleAudioLinear(audio, this.sampleRate, 16000));
         const result = await this.transcriber(waveform, {
           sampling_rate: 16000,
           language: WHISPER_LANGUAGES[this.sourceLang] || this.sourceLang,
-          task: "transcribe"
+          task: "transcribe",
+          return_timestamps: true,
+          num_beams: 2
         });
         if (!this.active || session !== this.session) return;
-        const raw = Array.isArray(result) ? result.map((item) => item.text || "").join(" ") : (result && result.text) || "";
+        const modelChunks = result && Array.isArray(result.chunks) ? result.chunks : [];
+        const raw = Array.isArray(result)
+          ? result.map((item) => item.text || "").join(" ")
+          : (result && result.text) || modelChunks.map((chunk) => chunk.text || "").join(" ");
         const text = this.overlapFilter.push(raw);
-        if (text) this.callbacks.onFinal({ text, sourceLang: this.sourceLang, asrProvider: "local-whisper" });
+        if (text) this.callbacks.onFinal({
+          text,
+          sourceLang: this.sourceLang,
+          asrProvider: "local-whisper",
+          asrSegments: modelChunks.map((chunk) => ({ text: chunk.text || "", timestamp: chunk.timestamp || null }))
+        });
       } catch (error) {
         if (this.active && session === this.session) this.callbacks.onError({ code: "local-whisper-inference-failed", error });
       } finally {
@@ -909,6 +940,7 @@
     CaptionOverlayRenderer,
     loadLocalWhisperPipeline,
     resampleAudioLinear,
+    conditionWhisperAudio,
     LiveCaptionEngine
   };
 });
