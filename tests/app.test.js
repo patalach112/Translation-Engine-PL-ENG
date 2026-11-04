@@ -19,7 +19,17 @@ const {
   visibleCharLength
 } = require("../web/app.js");
 const { normalizeLang, detectSourceLang } = require("../scripts/headless-translator.js");
-const { LiveCaptionEngine, CaptionOverlayRenderer, BrowserSpeechRecognitionProvider } = require("../web/live-caption-engine.js");
+const {
+  LiveCaptionEngine,
+  CaptionOverlayRenderer,
+  BrowserSpeechRecognitionProvider,
+  LocalWhisperSpeechProvider,
+  AudioCaptureAdapter,
+  GlossaryLexicon,
+  TranscriptOverlapFilter,
+  loadLocalWhisperPipeline,
+  resampleAudioLinear
+} = require("../web/live-caption-engine.js");
 
 class FakeSpeechRecognition {
   constructor({ rejectAudioTrack = false } = {}) {
@@ -347,7 +357,15 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /id="btn-live-captions"/);
   assert.match(html, /id="live-caption-overlay"/);
   assert.match(html, /id="live-caption-heard"/);
+  assert.match(html, /id="live-asr-provider"/);
+  assert.match(html, /id="live-asr-model"/);
+  assert.match(html, /id="live-caption-glossary"/);
+  assert.match(html, /id="live-model-progress"/);
+  assert.match(html, /id="btn-live-subtitle-file"/);
+  assert.match(html, /value="onnx-community\/whisper-tiny"/);
+  assert.match(html, /\.ass,\.ssa/);
   assert.match(html, /live-caption-engine\.js" defer/);
+  assert.ok(fs.existsSync(path.join(__dirname, "../web/live-audio-worklet.js")));
 });
 
 test("Generic language translator creates timestamp-preserving tracks for any supported locale", async () => {
@@ -387,6 +405,158 @@ test("Live speech transcripts translate from Japanese into a selected subtitle l
   assert.equal(result.text, "Cześć, świecie!");
   assert.equal(result.providerUsed, "test-mock");
   await assert.rejects(translateLiveTranscript("hello", "xx", "pl", translator), /Unsupported live caption/);
+});
+
+test("Live translation protects custom anime glossary terms and Whisper overlap is removed", async () => {
+  const translator = {
+    lastUsedProvider: "test-mock",
+    async translateSegment(text, source, target) {
+      assert.equal(source, "ja");
+      assert.equal(target, "pl");
+      assert.match(text, /⟦T0⟧/);
+      assert.doesNotMatch(text, /ピカチュウ/);
+      return "⟦T0⟧ nadchodzi";
+    }
+  };
+  const result = await translateLiveTranscript("ピカチュウが来た", "ja", "pl", translator, [
+    { source: "ピカチュウ", target: "Pikachu" }
+  ]);
+  assert.equal(result.text, "Pikachu nadchodzi");
+
+  const glossary = new GlossaryLexicon([{ source: "C++", target: "C plus plus" }]);
+  const protectedText = glossary.protect("C++ is a language");
+  assert.equal(glossary.restore(protectedText.text, protectedText.tokens), "C plus plus is a language");
+  const overlap = new TranscriptOverlapFilter({ minOverlap: 4 });
+  assert.equal(overlap.push("Good morning everyone"), "Good morning everyone");
+  assert.equal(overlap.push("everyone, welcome back"), "welcome back");
+  assert.equal(overlap.push("sword attack"), "sword attack");
+  assert.deepEqual(Array.from(resampleAudioLinear(new Float32Array([0, 1, 0, -1]), 32000, 16000)), [0, 0]);
+});
+
+test("Whisper pipeline uses a quantized browser runtime and caches the model", async () => {
+  const calls = [];
+  const pipelineInstance = async () => ({ text: "" });
+  const runtime = {
+    env: {},
+    async pipeline(...args) {
+      calls.push(args);
+      return pipelineInstance;
+    }
+  };
+  const options = {
+    modelId: "test/unique-whisper-runtime-cache",
+    runtimeLoader: async () => runtime
+  };
+  assert.equal(await loadLocalWhisperPipeline(options), pipelineInstance);
+  assert.equal(runtime.env.useBrowserCache, true);
+  assert.deepEqual(calls[0].slice(0, 2), ["automatic-speech-recognition", options.modelId]);
+  assert.ok(["wasm", "webgpu"].includes(calls[0][2].device));
+  assert.equal(calls[0][2].dtype, "q8");
+  assert.equal(await loadLocalWhisperPipeline({ ...options, runtimeLoader: async () => { throw new Error("must use cache"); } }), pipelineInstance);
+  assert.equal(calls.length, 1);
+});
+
+test("Local Whisper provider loads on-device ASR and emits timestamp-window transcripts", async () => {
+  const states = [];
+  const transcripts = [];
+  let capturedSource;
+  let inferenceCount = 0;
+  const provider = new LocalWhisperSpeechProvider({
+    modelId: "test/whisper",
+    pipelineLoader: async ({ modelId }) => {
+      assert.equal(modelId, "test/whisper");
+      return async (waveform, options) => {
+        assert.ok(waveform instanceof Float32Array);
+        assert.equal(options.sampling_rate, 16000);
+        assert.equal(options.language, "japanese");
+        assert.equal(options.task, "transcribe");
+        inferenceCount += 1;
+        return { text: inferenceCount === 1 ? "こんにちは世界" : "こんにちは世界今日はいい天気です" };
+      };
+    },
+    audioSourceFactory: (options) => {
+      capturedSource = {
+        sampleRate: 16000,
+        start: async () => 16000,
+        stop: async () => {},
+        emit: options.onSamples
+      };
+      return capturedSource;
+    },
+    chunkSeconds: 1,
+    overlapSeconds: 0.25
+  });
+  const started = await provider.start({
+    sourceLang: "ja",
+    stream: {},
+    onState: (state) => states.push(state),
+    onFinal: (segment) => transcripts.push(segment),
+    onError: (error) => assert.fail(error.code || "Whisper provider emitted an unexpected error")
+  });
+  assert.equal(started, true);
+  assert.ok(states.includes("loading-model"));
+  capturedSource.emit(new Float32Array(16000).fill(0.05));
+  await new Promise((resolve) => setImmediate(resolve));
+  capturedSource.emit(new Float32Array(16000).fill(0.05));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(transcripts.length, 2);
+  assert.equal(transcripts[0].text, "こんにちは世界");
+  assert.equal(transcripts[1].text, "今日はいい天気です");
+  assert.ok(states.includes("transcribing"));
+  await provider.stop();
+});
+
+test("Live caption engine selects local Whisper and forwards the selected model id", async () => {
+  let requestedModel;
+  let selectedStream;
+  const track = { stop() {}, addEventListener() {} };
+  const stream = { getAudioTracks: () => [track], getTracks: () => [track] };
+  const engine = new LiveCaptionEngine({
+    mediaDevices: { async getUserMedia() { return stream; } },
+    localWhisperOptions: {
+      pipelineLoader: async ({ modelId }) => {
+        requestedModel = modelId;
+        return async () => ({ text: "" });
+      },
+      audioSourceFactory: ({ stream: inputStream }) => {
+        selectedStream = inputStream;
+        return { start: async () => 16000, stop: async () => {} };
+      }
+    }
+  });
+  assert.equal(await engine.start({
+    sourceLang: "ja", targetLang: "pl", audioSource: "microphone",
+    asrProvider: "local-whisper", modelId: "test/whisper-base"
+  }), true);
+  assert.equal(selectedStream, stream);
+  assert.equal(requestedModel, "test/whisper-base");
+  engine.stop();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(engine.state, "idle");
+});
+
+test("Audio capture adapter obtains tab or mono microphone streams for local ASR", async () => {
+  const track = { stop() {} };
+  const stream = { getAudioTracks: () => [track], getTracks: () => [track] };
+  let microphoneOptions;
+  const adapter = new AudioCaptureAdapter({
+    async getDisplayMedia(options) {
+      assert.equal(options.audio, true);
+      return stream;
+    },
+    async getUserMedia(options) {
+      microphoneOptions = options;
+      return stream;
+    }
+  });
+  const tabCapture = await adapter.open("tab", { captureMicrophone: true });
+  assert.equal(tabCapture.audioTrack, track);
+  assert.equal(tabCapture.fallback, false);
+  adapter.close();
+  const microphoneCapture = await adapter.open("microphone", { captureMicrophone: true });
+  assert.equal(microphoneCapture.audioTrack, track);
+  assert.equal(microphoneOptions.audio.channelCount, 1);
+  adapter.close();
 });
 
 test("Browser ASR adapter normalizes locales, restarts safely, and renderer owns cue expiry", () => {

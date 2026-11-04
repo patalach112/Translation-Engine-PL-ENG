@@ -180,6 +180,7 @@
               </div>
               <span id="live-caption-status" class="live-caption-status" role="status" aria-live="polite" data-i18n="liveCaptionIdle">Not listening</span>
             </div>
+            <button type="button" class="btn btn-xs live-subtitle-preferred" id="btn-live-subtitle-file" data-i18n="btnLoadSubtitleForTranslation">Best sync: translate an anime subtitle file</button>
             <div class="live-caption-controls">
               <label>
                 <span data-i18n="spokenLanguageLabel">Spoken language</span>
@@ -196,10 +197,33 @@
                   <option value="microphone" data-i18n="audioSourceMic">Microphone / speakers</option>
                 </select>
               </label>
+              <label>
+                <span data-i18n="asrProviderLabel">Speech engine</span>
+                <select id="live-asr-provider" class="language-picker" aria-label="Speech recognition engine">
+                  <option value="local-whisper" data-i18n="asrLocalWhisper">Local Whisper (downloads model)</option>
+                  <option value="browser" data-i18n="asrBrowser">Browser speech service</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="asrModelLabel">Local model</span>
+                <select id="live-asr-model" class="language-picker" aria-label="Local speech model">
+                  <option value="onnx-community/whisper-tiny" data-i18n="asrModelTiny">Whisper Tiny — faster, lower accuracy</option>
+                  <option value="onnx-community/whisper-base" data-i18n="asrModelBase">Whisper Base — slower, better accuracy</option>
+                </select>
+              </label>
               <button type="button" class="btn btn-primary" id="btn-live-captions" data-i18n="btnStartListening">Start live captions</button>
             </div>
+            <div class="live-model-progress-row">
+              <progress id="live-model-progress" max="100" value="0" hidden></progress>
+              <span id="live-model-progress-label" aria-live="polite"></span>
+            </div>
+            <label class="live-glossary-field">
+              <span data-i18n="glossaryLabel">Anime glossary (source = preferred subtitle text)</span>
+              <textarea id="live-caption-glossary" rows="2" data-i18n-placeholder="glossaryPlaceholder" placeholder="猫 = neko&#10;さくら = Sakura"></textarea>
+            </label>
+            <p class="live-caption-glossary-help" data-i18n="glossaryHelp">One term per line. Glossary matches are protected from machine translation.</p>
             <p id="live-caption-heard" class="live-caption-heard" hidden><span data-i18n="recognizedSpeechLabel">Heard:</span> <span id="live-caption-transcript"></span></p>
-            <p class="live-caption-privacy" data-i18n="liveCaptionPrivacy">For subtitles over the anime, play its video in this player and share this tab with audio enabled. Microphone mode hears nearby speakers. Browser speech recognition and the selected translation provider may process audio or transcript data online.</p>
+            <p class="live-caption-privacy" data-i18n="liveCaptionPrivacy">Load the anime into this player. Local Whisper downloads a model once and transcribes audio on-device; only transcript text goes to the translation provider. Browser speech mode may send audio to its online service. Tab capture requires sharing this tab; microphone mode hears speakers.</p>
           </section>
 
           <!-- Video Title & Description -->
@@ -373,7 +397,7 @@
                 <input
                   type="file"
                   id="subtitle-file-input"
-                  accept=".srt,.vtt,text/vtt,text/plain"
+                  accept=".srt,.vtt,.ass,.ssa,text/vtt,text/plain"
                 >
                 <span class="dropzone-icon" aria-hidden="true">&#128196;</span>
                 <span class="dropzone-title" data-i18n="dropSubTitle">Load Subtitle File</span>

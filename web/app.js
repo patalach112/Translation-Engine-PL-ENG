@@ -204,7 +204,7 @@
       btnCreatorStudio: "Creator Studio",
       subtitlesLabel: "Subtitles:",
       liveCaptionHeading: "Live audio captions",
-      liveCaptionDescription: "Transcribe speech and translate it into subtitles while this video plays.",
+      liveCaptionDescription: "For best sync, translate an anime subtitle file. If none exists, use local live speech captions.",
       liveCaptionIdle: "Not listening",
       liveCaptionStarting: "Starting audio capture…",
       liveCaptionListening: "Listening and translating…",
@@ -215,11 +215,25 @@
       spokenLanguageLabel: "Spoken language",
       captionLanguageLabel: "Subtitle language",
       audioSourceLabel: "Audio source",
+      asrProviderLabel: "Speech engine",
+      asrLocalWhisper: "Local Whisper (downloads model)",
+      asrBrowser: "Browser speech service",
+      asrModelLabel: "Local model",
+      asrModelTiny: "Whisper Tiny — faster, lower accuracy",
+      asrModelBase: "Whisper Base — slower, better accuracy",
+      btnLoadSubtitleForTranslation: "Best sync: translate an anime subtitle file",
+      glossaryLabel: "Anime glossary (source = preferred subtitle text)",
+      glossaryPlaceholder: "猫 = neko\nさくら = Sakura",
+      glossaryHelp: "One term per line. Glossary matches are protected from machine translation.",
+      liveCaptionLoadingModel: "Downloading/loading local speech model…",
+      liveCaptionTranscribing: "Local model is transcribing…",
+      liveCaptionModelReady: "Local speech model ready (cached in this browser).",
+      liveCaptionLocalModelError: "Local Whisper failed to load or run. Check connection, browser memory, and model access.",
       audioSourceTab: "This browser tab’s audio",
       audioSourceMic: "Microphone / speakers",
       btnStartListening: "Start live captions",
       btnStopListening: "Stop live captions",
-      liveCaptionPrivacy: "For subtitles over the anime, play its video in this player and share this tab with audio enabled. Microphone mode hears nearby speakers. Browser speech recognition and the selected translation provider may process audio or transcript data online.",
+      liveCaptionPrivacy: "Load the anime into this player. Local Whisper downloads a model once and transcribes audio on-device; only transcript text goes to the translation provider. Browser speech mode may send audio to its online service. Tab capture requires sharing this tab; microphone mode hears speakers.",
       liveCaptionUnsupported: "Live speech recognition is not available in this browser. Try a current version of Chrome or Edge.",
       liveCaptionNetworkError: "The browser speech-recognition service could not be reached. Check your internet connection and try again.",
       liveCaptionAudioError: "No usable audio input was found. Check the shared tab or microphone permission.",
@@ -289,7 +303,7 @@
       btnCreatorStudio: "Panel Twórcy",
       subtitlesLabel: "Napisy:",
       liveCaptionHeading: "Napisy na żywo z dźwięku",
-      liveCaptionDescription: "Rozpoznawaj mowę i tłumacz ją na napisy podczas odtwarzania filmu.",
+      liveCaptionDescription: "Najlepsza synchronizacja: przetłumacz plik napisów anime. Jeśli go nie ma, użyj lokalnego rozpoznawania mowy.",
       liveCaptionIdle: "Nie nasłuchuje",
       liveCaptionStarting: "Uruchamianie przechwytywania dźwięku…",
       liveCaptionListening: "Nasłuchiwanie i tłumaczenie…",
@@ -300,11 +314,25 @@
       spokenLanguageLabel: "Język mówiony",
       captionLanguageLabel: "Język napisów",
       audioSourceLabel: "Źródło dźwięku",
+      asrProviderLabel: "Silnik rozpoznawania mowy",
+      asrLocalWhisper: "Lokalny Whisper (pobiera model)",
+      asrBrowser: "Usługa mowy przeglądarki",
+      asrModelLabel: "Model lokalny",
+      asrModelTiny: "Whisper Tiny — szybszy, mniej dokładny",
+      asrModelBase: "Whisper Base — wolniejszy, dokładniejszy",
+      btnLoadSubtitleForTranslation: "Najlepsza synchronizacja: przetłumacz plik napisów anime",
+      glossaryLabel: "Słownik anime (źródło = tekst napisów)",
+      glossaryPlaceholder: "猫 = neko\nさくら = Sakura",
+      glossaryHelp: "Jeden termin w wierszu. Dopasowane hasła są chronione przed tłumaczeniem maszynowym.",
+      liveCaptionLoadingModel: "Pobieranie/ładowanie lokalnego modelu mowy…",
+      liveCaptionTranscribing: "Lokalny model transkrybuje…",
+      liveCaptionModelReady: "Lokalny model mowy jest gotowy (zapisany w tej przeglądarce).",
+      liveCaptionLocalModelError: "Lokalny Whisper nie uruchomił się. Sprawdź internet, pamięć przeglądarki i dostęp do modelu.",
       audioSourceTab: "Dźwięk z tej karty przeglądarki",
       audioSourceMic: "Mikrofon / głośniki",
       btnStartListening: "Włącz napisy na żywo",
       btnStopListening: "Zatrzymaj napisy na żywo",
-      liveCaptionPrivacy: "Aby wyświetlać napisy na anime, odtwórz film w tym odtwarzaczu i udostępnij dźwięk tej karty. Tryb mikrofonu nasłuchuje pobliskich głośników. Przeglądarka i dostawca tłumaczeń mogą przetwarzać dźwięk lub transkrypcję online.",
+      liveCaptionPrivacy: "Wczytaj anime do tego odtwarzacza. Lokalny Whisper pobiera model i rozpoznaje mowę na urządzeniu; do dostawcy tłumaczeń wysyłany jest tylko tekst. Tryb rozpoznawania przeglądarki może wysyłać dźwięk do usługi online. Dźwięk karty wymaga jej udostępnienia; mikrofon nasłuchuje głośników.",
       liveCaptionUnsupported: "Rozpoznawanie mowy na żywo nie jest dostępne w tej przeglądarce. Użyj aktualnej wersji Chrome lub Edge.",
       liveCaptionNetworkError: "Nie można połączyć się z usługą rozpoznawania mowy przeglądarki. Sprawdź internet i spróbuj ponownie.",
       liveCaptionAudioError: "Brak działającego źródła dźwięku. Sprawdź udostępnioną kartę lub dostęp do mikrofonu.",
@@ -655,7 +683,8 @@
     UI_LANGUAGE: "streampl_ui_lang_v1",
     THEME: "streampl_theme_v1",
     SETTINGS: "translation_engine_pl_eng_settings_v1",
-    SUBTITLE_CACHE: "streampl_vtt_cache_v1"
+    SUBTITLE_CACHE: "streampl_vtt_cache_v1",
+    LIVE_GLOSSARY: "streampl_live_glossary_v1"
   };
 
   const LocalizationManager = {
@@ -2152,7 +2181,7 @@
     }
   }
 
-  async function translateLiveTranscript(text, sourceLang, targetLang, translator) {
+  async function translateLiveTranscript(text, sourceLang, targetLang, translator, glossaryEntries = []) {
     const source = String(sourceLang || "").trim();
     const target = String(targetLang || "").trim();
     if (!SUPPORTED_LANGUAGE_CODES.has(source) || !SUPPORTED_LANGUAGE_CODES.has(target)) {
@@ -2160,12 +2189,20 @@
     }
     const transcript = String(text || "").trim();
     if (!transcript) return { text: "", providerUsed: "none" };
+    const glossaryApi = typeof globalThis !== "undefined" ? globalThis.LiveCaptionEngine : null;
+    const glossary = glossaryApi && glossaryApi.GlossaryLexicon
+      ? new glossaryApi.GlossaryLexicon(glossaryEntries)
+      : null;
+    const protectedTerms = glossary ? glossary.protect(transcript) : { text: transcript, tokens: [] };
+    const shield = TokenShield.mask(protectedTerms.text);
     const engine = translator || new ClientTranslator();
-    const translated = await engine.translateSegment(transcript, source, target, {
+    const maskedTranslation = await engine.translateSegment(shield.cleanText, source, target, {
       activeRegister: "default"
     });
+    const restoredTranslation = TokenShield.unmask(maskedTranslation, shield);
+    const finalTranslation = glossary ? glossary.restore(restoredTranslation, protectedTerms) : restoredTranslation;
     return {
-      text: TextFormatter.formatCueText(translated, { maxCpl: 42, lang: target }),
+      text: TextFormatter.formatCueText(finalTranslation, { maxCpl: 42, lang: target }),
       providerUsed: engine.lastUsedProvider || "unknown"
     };
   }
@@ -2453,6 +2490,12 @@
     const liveSourceLanguageSelect = document.getElementById("live-source-language");
     const liveTargetLanguageSelect = document.getElementById("live-target-language");
     const liveAudioSourceSelect = document.getElementById("live-audio-source");
+    const liveAsrProviderSelect = document.getElementById("live-asr-provider");
+    const liveAsrModelSelect = document.getElementById("live-asr-model");
+    const liveGlossaryInput = document.getElementById("live-caption-glossary");
+    const liveModelProgress = document.getElementById("live-model-progress");
+    const liveModelProgressLabel = document.getElementById("live-model-progress-label");
+    const btnLiveSubtitleFile = document.getElementById("btn-live-subtitle-file");
     const btnLiveCaptions = document.getElementById("btn-live-captions");
     const liveCaptionStatus = document.getElementById("live-caption-status");
     const liveCaptionOverlay = document.getElementById("live-caption-overlay");
@@ -2546,6 +2589,7 @@
     let liveTranslator = null;
     let liveCaptionRenderer = null;
     let liveFallbackToastShown = false;
+    let liveGlossaryEntries = [];
     let liveStatusKey = "liveCaptionIdle";
     let liveEngine = null;
 
@@ -2849,6 +2893,32 @@
       liveCaptionStatus.classList.toggle("is-listening", listening);
     }
 
+    function parseLiveGlossary(value) {
+      return String(value || "").split(/\r?\n/).map((line) => {
+        const separator = line.search(/[=＝]/);
+        if (separator < 0) return null;
+        const source = line.slice(0, separator).trim();
+        const target = line.slice(separator + 1).trim();
+        return source && target ? { source, target } : null;
+      }).filter(Boolean).slice(0, 200);
+    }
+
+    function loadLiveGlossary() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.LIVE_GLOSSARY) || "";
+        if (liveGlossaryInput) liveGlossaryInput.value = saved;
+        liveGlossaryEntries = parseLiveGlossary(saved);
+      } catch (_error) {
+        liveGlossaryEntries = [];
+      }
+    }
+
+    function saveLiveGlossary() {
+      const raw = liveGlossaryInput ? liveGlossaryInput.value : "";
+      liveGlossaryEntries = parseLiveGlossary(raw);
+      try { localStorage.setItem(STORAGE_KEYS.LIVE_GLOSSARY, raw); } catch (_error) { /* optional preference */ }
+    }
+
     function getShowingSubtitleLanguage() {
       for (let i = 0; i < videoEl.textTracks.length; i += 1) {
         if (videoEl.textTracks[i].mode === "showing") {
@@ -2884,6 +2954,9 @@
         "recognition-unavailable": "liveCaptionUnsupported",
         "audio-capture-failed": "liveCaptionAudioError",
         "audio-capture": "liveCaptionAudioError",
+        "audio-worklet-unavailable": "liveCaptionLocalModelError",
+        "local-whisper-failed": "liveCaptionLocalModelError",
+        "local-whisper-inference-failed": "liveCaptionLocalModelError",
         "language-not-supported": "liveCaptionLanguageError",
         network: "liveCaptionNetworkError",
         "translation-failed": "liveCaptionTranslationFailed",
@@ -2904,20 +2977,45 @@
       return new engineApi.LiveCaptionEngine({
         mediaDevices: navigator.mediaDevices,
         translate: async (segment) => translateLiveTranscript(
-          segment.text, segment.sourceLang, segment.targetLang, liveTranslator
+          segment.text, segment.sourceLang, segment.targetLang, liveTranslator, liveGlossaryEntries
         ),
         onStatus(event) {
-          liveActive = ["starting", "listening", "no-speech"].includes(event.state);
-          liveStarting = event.state === "starting";
+          liveActive = ["starting", "loading-model", "listening", "transcribing", "no-speech"].includes(event.state);
+          liveStarting = event.state === "starting" || event.state === "loading-model";
           const busy = liveActive;
-          [liveSourceLanguageSelect, liveTargetLanguageSelect, liveAudioSourceSelect].forEach((select) => {
+          [liveSourceLanguageSelect, liveTargetLanguageSelect, liveAudioSourceSelect, liveAsrProviderSelect, liveAsrModelSelect, liveGlossaryInput].forEach((select) => {
             if (select) select.disabled = busy;
           });
+          if (liveAsrModelSelect && liveAsrProviderSelect) {
+            liveAsrModelSelect.disabled = busy || liveAsrProviderSelect.value !== "local-whisper";
+          }
+          if (liveModelProgress) {
+            const loading = event.state === "loading-model";
+            liveModelProgress.hidden = !loading;
+            if (loading) {
+              const rawProgress = event.progress && typeof event.progress === "object" ? event.progress.progress : null;
+              if (Number.isFinite(Number(rawProgress))) {
+                let percent = Number(rawProgress);
+                if (percent > 0 && percent <= 1) percent *= 100;
+                liveModelProgress.value = Math.max(0, Math.min(100, percent));
+              } else liveModelProgress.removeAttribute("value");
+            } else if (event.state === "idle" || event.state === "error") liveModelProgress.value = 0;
+          }
+          if (liveModelProgressLabel) {
+            if (event.state === "loading-model") {
+              const detail = event.progress && event.progress.file ? ` — ${event.progress.file}` : "";
+              liveModelProgressLabel.textContent = `${LocalizationManager.t(uiLang, "liveCaptionLoadingModel")}${detail}`;
+            } else if (event.state === "transcribing") liveModelProgressLabel.textContent = LocalizationManager.t(uiLang, "liveCaptionTranscribing");
+            else if (event.state === "listening" && event.input === "local-whisper") liveModelProgressLabel.textContent = LocalizationManager.t(uiLang, "liveCaptionModelReady");
+            else if (event.state === "starting" || event.state === "listening" || event.state === "idle" || event.state === "error") liveModelProgressLabel.textContent = "";
+          }
           if (btnLiveCaptions) {
-            btnLiveCaptions.disabled = liveStarting;
+            btnLiveCaptions.disabled = event.state === "starting";
             btnLiveCaptions.textContent = LocalizationManager.t(uiLang, busy ? "btnStopListening" : "btnStartListening");
           }
           if (event.state === "starting") setLiveCaptionStatus("liveCaptionStarting", true);
+          else if (event.state === "loading-model") setLiveCaptionStatus("liveCaptionLoadingModel", true);
+          else if (event.state === "transcribing") setLiveCaptionStatus("liveCaptionTranscribing", true);
           else if (event.state === "no-speech") setLiveCaptionStatus("liveCaptionNoSpeech", true);
           else if (event.state === "listening") {
             setLiveCaptionStatus(event.input === "microphone-fallback" ? "liveCaptionUsingMicFallback" : "liveCaptionListening", true);
@@ -2987,7 +3085,9 @@
       const started = await liveEngine.start({
         sourceLang: liveSourceLanguageSelect?.value || "ja",
         targetLang: liveTargetLanguageSelect?.value || "pl",
-        audioSource: liveAudioSourceSelect?.value || "tab"
+        audioSource: liveAudioSourceSelect?.value || "tab",
+        asrProvider: liveAsrProviderSelect?.value || "local-whisper",
+        modelId: liveAsrModelSelect?.value || "onnx-community/whisper-tiny"
       });
       liveStarting = false;
       if (!started && liveEngine.state !== "error") restorePreviousSubtitleTrack();
@@ -2995,8 +3095,22 @@
 
     if (btnLiveCaptions) {
       populateLiveLanguageSelectors();
+      loadLiveGlossary();
+      if (liveAsrModelSelect && liveAsrProviderSelect) {
+        liveAsrModelSelect.disabled = liveAsrProviderSelect.value !== "local-whisper";
+        liveAsrProviderSelect.addEventListener("change", () => {
+          liveAsrModelSelect.disabled = liveAsrProviderSelect.value !== "local-whisper";
+        });
+      }
+      if (liveGlossaryInput) liveGlossaryInput.addEventListener("input", saveLiveGlossary);
+      if (btnLiveSubtitleFile && subFileInput) {
+        btnLiveSubtitleFile.addEventListener("click", () => {
+          if (liveActive || liveStarting) stopLiveCaptions({ restoreTrack: false });
+          subFileInput.click();
+        });
+      }
       btnLiveCaptions.addEventListener("click", () => {
-        if (liveActive) stopLiveCaptions();
+        if (liveActive || liveStarting) stopLiveCaptions();
         else startLiveCaptions();
       });
     }
@@ -3721,7 +3835,11 @@
     }
 
     videoFileInput.addEventListener("change", (e) => handleLocalVideoFile(e.target.files[0]));
-    subFileInput.addEventListener("change", (e) => handleSubtitleFile(e.target.files[0]));
+    subFileInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) handleSubtitleFile(file);
+      e.target.value = "";
+    });
 
     function wireDragAndDrop(zoneEl, onFile) {
       ["dragenter", "dragover"].forEach((evt) => {

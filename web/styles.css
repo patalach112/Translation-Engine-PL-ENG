@@ -431,6 +431,7 @@ video::cue(i) {
   white-space: pre-wrap;
 }
 .live-caption-heard[hidden] { display: none !important; }
+.live-subtitle-preferred { margin-bottom: 0.65rem; border-color: var(--accent); color: var(--accent); }
 .live-caption-controls {
   display: flex;
   flex-wrap: wrap;
@@ -445,6 +446,36 @@ video::cue(i) {
   font-weight: 700;
 }
 .live-caption-controls .language-picker { min-width: 8.5rem; }
+.live-model-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+.live-model-progress-row progress { width: min(20rem, 45vw); height: 0.65rem; accent-color: var(--accent); }
+.live-glossary-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.live-glossary-field textarea {
+  width: 100%;
+  max-width: 48rem;
+  min-height: 3.2rem;
+  resize: vertical;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font: 0.82rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.live-caption-glossary-help { margin: 0.35rem 0 0; color: var(--text-muted); font-size: 0.74rem; }
 .live-caption-privacy { margin-top: 0.65rem; max-width: 75rem; }
 
 /* Prominent Viewer Subtitle & Aspect Control Bar */
