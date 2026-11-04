@@ -1,0 +1,23 @@
+1
+00:00:01,000 --> 00:00:04,500
+Dzień dobry, Panie Marku. Witamy w naszym studiu w Warszawie.
+
+2
+00:00:04,800 --> 00:00:08,600
+Czy może Pan opowiedzieć, jak powstał ten projekt wideo?
+
+3
+00:00:09,000 --> 00:00:13,200
+Ze względu na to, że w chwili obecnej publikujemy filmy codziennie,
+
+4
+00:00:13,500 --> 00:00:17,400
+potrzebowaliśmy automatycznego systemu napisów dla widzów.
+
+5
+00:00:17,800 --> 00:00:21,600
+<i>Cześć wszystkim! Wybierzcie język napisów bezpośrednio w odtwarzaczu.</i>
+
+6
+00:00:22,000 --> 00:00:25,500
+Dziękujemy za uwagę i do zobaczenia w kolejnym odcinku!

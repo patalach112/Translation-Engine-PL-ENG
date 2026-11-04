@@ -1,0 +1,11 @@
+# Dependencies & caches
+node_modules/
+.cache/
+dist/
+build/
+coverage/
+
+# OS & editor artifacts
+.DS_Store
+Thumbs.db
+*.swp

@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>StreamPL — Bilingual EN ⇄ PL Video Hub &amp; Client-Side Subtitle Studio</title>
+
+  <!-- SEO & Discovery Meta -->
+  <meta
+    name="description"
+    content="Watch videos with instant bidirectional English and Polish subtitles. Powered by a 100% client-side WebVTT localization engine with 42-CPL typography and sub-second caching."
+  >
+  <meta
+    name="keywords"
+    content="Polish subtitles, English subtitles, WebVTT player, SRT translator, client-side localization, HTML5 video captions"
+  >
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" id="meta-theme-color" content="#090d16">
+
+  <!-- OpenGraph Social Sharing -->
+  <meta property="og:site_name" content="StreamPL Video Hub">
+  <meta property="og:type" content="video.other">
+  <meta property="og:title" content="StreamPL — Instant English ⇄ Polish Video Streaming &amp; Subtitles">
+  <meta
+    property="og:description"
+    content="Seamless bilingual streaming with auto-detected Polish/English captions, 5-cue grammar context, and instant browser caching."
+  >
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="pl_PL">
+  <meta
+    property="og:image"
+    content="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg"
+  >
+
+  <!-- Twitter Card Social Sharing -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="StreamPL — Bilingual EN ⇄ PL Video Hub">
+  <meta
+    name="twitter:description"
+    content="Zero-backend HTML5 video hub with automatic Polish &amp; English WebVTT subtitles, 42-CPL formatting, and sub-second offline cache."
+  >
+  <meta
+    name="twitter:image"
+    content="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg"
+  >
+
+  <!-- Inline Vector Favicon (zero external asset 404s) -->
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%2338bdf8'/%3E%3Cstop offset='100%25' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpolygon points='25,18 25,46 47,32' fill='%23fff'/%3E%3C/svg%3E"
+  >
+
+  <!-- Modern Typography (gracefully falls back to system-ui offline) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <!-- =====================================================================
+       PUBLIC STREAMING HUB NAVBAR
+       ===================================================================== -->
+  <header class="hub-navbar">
+    <div class="hub-navbar-inner">
+      <a href="#" class="brand-link" id="brand-home-link">
+        <span class="brand-mark" aria-hidden="true">&#9654;</span>
+        <span>
+          <span class="brand-text-title">StreamPL</span>
+          <span class="brand-text-sub" data-i18n="navTagline">Bilingual Video Hub &bull; EN ⇄ PL</span>
+        </span>
+      </a>
+
+      <div class="nav-controls">
+        <button
+          type="button"
+          id="btn-ui-lang"
+          class="btn btn-icon"
+          title="Switch interface language (PL / EN)"
+          aria-label="Switch interface language"
+        >
+          <span id="ui-lang-label">EN</span>
+        </button>
+
+        <button
+          type="button"
+          id="btn-theme-toggle"
+          class="btn btn-icon"
+          title="Toggle Dark / Light Mode"
+          aria-label="Toggle color theme"
+        >
+          <span id="theme-icon" aria-hidden="true">&#9790;</span>
+        </button>
+
+        <button
+          type="button"
+          id="btn-toggle-studio"
+          class="btn btn-studio-toggle"
+          aria-expanded="false"
+          aria-controls="creator-studio-backdrop"
+        >
+          <span aria-hidden="true">&#9881;</span>
+          <span data-i18n="btnCreatorStudio">Creator Studio</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       PUBLIC VIDEO HUB (END-USER VIEWER INTERFACE)
+       ===================================================================== -->
+  <main class="hub-main">
+    <div class="watch-layout" id="watch-layout">
+      <!-- Primary Cinema Column -->
+      <section aria-label="Video Player">
+        <div class="player-shell">
+          <div class="player-stage" id="player-stage">
+            <div class="player-viewport" id="player-viewport">
+              <video id="video-player" controls preload="metadata" playsinline>
+                <source
+                  src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+                  type="video/mp4"
+                >
+                <source
+                  src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+                  type="video/mp4"
+                >
+                Your browser does not support HTML5 video.
+              </video>
+            </div>
+          </div>
+
+          <!-- Prominent End-User Subtitle & Aspect Bar -->
+          <div class="viewer-caption-bar">
+            <div class="cc-prominent-group" role="group" aria-label="Subtitles">
+              <span class="cc-label" data-i18n="subtitlesLabel">Subtitles:</span>
+              <button type="button" class="cc-pill-btn" data-track-select="pl">
+                <span class="cc-dot" aria-hidden="true"></span>
+                <span>Polski (CC)</span>
+              </button>
+              <button type="button" class="cc-pill-btn" data-track-select="en">
+                <span class="cc-dot" aria-hidden="true"></span>
+                <span>English (CC)</span>
+              </button>
+              <button type="button" class="cc-pill-btn" data-track-select="off">
+                <span data-i18n="captionsOff">Off</span>
+              </button>
+            </div>
+
+            <div class="player-aux-controls">
+              <span id="cache-hit-badge" class="badge badge-success" hidden>
+                &#9889; <span data-i18n="badgeCached">Instant Cache</span>
+              </span>
+              <button type="button" class="btn btn-xs" id="btn-aspect-16-9" title="16:9 Widescreen">
+                16:9
+              </button>
+              <button type="button" class="btn btn-xs" id="btn-aspect-9-16" title="9:16 Vertical Short">
+                9:16 Shorts
+              </button>
+              <button type="button" class="btn btn-xs" id="btn-theater-mode">
+                <span data-i18n="btnTheater">Theater</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Video Title & Description -->
+          <div class="video-meta-panel">
+            <div class="video-meta-top">
+              <div>
+                <h1 class="video-headline" id="current-video-title">
+                  AI Localization Keynote: Real-Time Streaming Architecture
+                </h1>
+                <p class="video-description" id="current-video-desc">
+                  Explore how rolling 5-cue context windows, TokenShield tag protection, and 42-CPL typography deliver broadcast-grade Polish and English subtitles directly in the browser.
+                </p>
+              </div>
+              <span id="active-provider-badge" class="badge badge-accent">
+                Auto Free Engine
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Featured Videos / Channel Shelf -->
+        <section class="playlist-section" aria-labelledby="playlist-heading">
+          <h2 class="section-heading" id="playlist-heading">
+            <span data-i18n="featuredVideosHeading">Featured Streams</span>
+            <span class="badge" id="saved-pref-indicator">CC: Auto</span>
+          </h2>
+
+          <div class="playlist-grid" id="playlist-grid">
+            <button type="button" class="video-card active" data-video-id="keynote">
+              <div>
+                <div class="video-card-thumb">
+                  <span class="video-card-tag">16:9 HD &bull; EN &rarr; PL</span>
+                  <span class="badge">0:44</span>
+                </div>
+                <h3 class="video-card-title" data-i18n="card1Title">
+                  AI Localization Keynote: Live Broadcast
+                </h3>
+              </div>
+              <p class="video-card-sub" data-i18n="card1Sub">
+                Formal &ldquo;Pani&rdquo; &amp; group &ldquo;wy&rdquo; context shift
+              </p>
+            </button>
+
+            <button type="button" class="video-card" data-video-id="interview">
+              <div>
+                <div class="video-card-thumb">
+                  <span class="video-card-tag">16:9 HD &bull; PL &rarr; EN</span>
+                  <span class="badge">0:26</span>
+                </div>
+                <h3 class="video-card-title" data-i18n="card2Title">
+                  Warsaw Studio: Automated Video Captions
+                </h3>
+              </div>
+              <p class="video-card-sub" data-i18n="card2Sub">
+                Polish source audio/captions translated to English
+              </p>
+            </button>
+
+            <button type="button" class="video-card" data-video-id="vertical_short">
+              <div>
+                <div class="video-card-thumb">
+                  <span class="video-card-tag">9:16 SHORT &bull; EN &rarr; PL</span>
+                  <span class="badge">0:18</span>
+                </div>
+                <h3 class="video-card-title" data-i18n="card3Title">
+                  Mobile Short: Instant Bilingual Captions
+                </h3>
+              </div>
+              <p class="video-card-sub" data-i18n="card3Sub">
+                Vertical 9:16 portrait framing &amp; quick CC toggle
+              </p>
+            </button>
+          </div>
+        </section>
+      </section>
+
+      <!-- Synchronized Interactive Transcript Sidebar -->
+      <aside class="transcript-card" aria-labelledby="transcript-heading">
+        <div class="transcript-header">
+          <h2 class="transcript-title" id="transcript-heading" data-i18n="transcriptHeading">
+            Interactive Transcript
+          </h2>
+          <span class="badge" id="transcript-lang-badge">PL</span>
+        </div>
+        <div class="transcript-list" id="viewer-transcript-list"></div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- =====================================================================
+       CREATOR DASHBOARD / ADMIN STUDIO DRAWER (HIDDEN BY DEFAULT)
+       ===================================================================== -->
+  <div id="creator-studio-backdrop" class="studio-backdrop" hidden>
+    <aside
+      class="studio-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="studio-drawer-title"
+    >
+      <div class="studio-header">
+        <div>
+          <h2 id="studio-drawer-title" data-i18n="studioTitle">
+            Creator Dashboard &amp; Localization Studio
+          </h2>
+        </div>
+        <button type="button" id="btn-close-studio" class="btn btn-xs">
+          &times; <span data-i18n="btnCloseStudio">Back to Viewer</span>
+        </button>
+      </div>
+
+      <!-- Creator Studio Navigation Tabs -->
+      <nav class="studio-tabs" role="tablist" aria-label="Creator Studio Sections">
+        <button
+          type="button"
+          class="studio-tab active"
+          role="tab"
+          aria-selected="true"
+          data-studio-tab="ingest"
+          data-i18n="tabIngest"
+        >
+          1. Upload &amp; Translate
+        </button>
+        <button
+          type="button"
+          class="studio-tab"
+          role="tab"
+          aria-selected="false"
+          data-studio-tab="settings"
+          data-i18n="tabSettings"
+        >
+          2. API Keys &amp; Cache
+        </button>
+        <button
+          type="button"
+          class="studio-tab"
+          role="tab"
+          aria-selected="false"
+          data-studio-tab="inspector"
+          data-i18n="tabInspector"
+        >
+          3. WebVTT Diagnostics
+        </button>
+      </nav>
+
+      <div class="studio-body">
+        <!-- TAB 1: UPLOAD, REGISTER & TRANSLATE -->
+        <div class="studio-pane" id="studio-pane-ingest" role="tabpanel">
+          <div class="studio-section">
+            <h3 class="studio-section-title">
+              <span data-i18n="ingestHeading">Media &amp; Subtitle Ingestion</span>
+              <button type="button" id="btn-mock-stream" class="btn btn-xs">
+                <span data-i18n="btnOfflineStream">Use Offline Studio Stream</span>
+              </button>
+            </h3>
+
+            <div class="dropzone-grid">
+              <label class="dropzone" id="video-dropzone">
+                <input
+                  type="file"
+                  id="video-file-input"
+                  accept="video/mp4,video/webm,video/ogg,.mp4,.webm,.mov"
+                >
+                <span class="dropzone-icon" aria-hidden="true">&#127916;</span>
+                <span class="dropzone-title" data-i18n="dropVideoTitle">Load Local Video</span>
+                <span id="video-file-meta" class="dropzone-meta" data-i18n="dropVideoHint">
+                  Drop .mp4 / .webm or click
+                </span>
+              </label>
+
+              <label class="dropzone" id="subtitle-dropzone">
+                <input
+                  type="file"
+                  id="subtitle-file-input"
+                  accept=".srt,.vtt,text/vtt,text/plain"
+                >
+                <span class="dropzone-icon" aria-hidden="true">&#128196;</span>
+                <span class="dropzone-title" data-i18n="dropSubTitle">Load Subtitle File</span>
+                <span id="subtitle-file-meta" class="dropzone-meta" data-i18n="dropSubHint">
+                  Drop .srt / .vtt or click
+                </span>
+              </label>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem;">
+              <input
+                type="url"
+                id="video-url-input"
+                placeholder="https://example.com/video.mp4"
+                data-i18n-placeholder="videoUrlPlaceholder"
+                aria-label="Public Video URL"
+              >
+              <button type="button" id="btn-load-video-url" class="btn" data-i18n="btnLoadUrl">
+                Load URL
+              </button>
+            </div>
+          </div>
+
+          <div class="studio-section">
+            <h3 class="studio-section-title">
+              <span data-i18n="registerHeading">Tone / Register (Polish Grammar Context)</span>
+            </h3>
+            <div class="register-grid" id="register-toggle-group" role="radiogroup">
+              <button type="button" class="register-option active" data-register="auto">
+                <strong data-i18n="regAutoTitle">Auto (5-Cue Context)</strong>
+                <span data-i18n="regAutoDesc">Infers Pan / Pani / wy from dialogue</span>
+              </button>
+              <button type="button" class="register-option" data-register="formal_fem">
+                <strong data-i18n="regFemTitle">Formal Feminine</strong>
+                <span data-i18n="regFemDesc">Polite &ldquo;Pani&rdquo; + feminine verbs</span>
+              </button>
+              <button type="button" class="register-option" data-register="formal_masc">
+                <strong data-i18n="regMascTitle">Formal Masculine</strong>
+                <span data-i18n="regMascDesc">Polite &ldquo;Pan&rdquo; + masculine verbs</span>
+              </button>
+              <button type="button" class="register-option" data-register="informal_plural">
+                <strong data-i18n="regPluralTitle">Informal Plural</strong>
+                <span data-i18n="regPluralDesc">Group &ldquo;wy&rdquo; (możecie / wasz)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="studio-section">
+            <div class="studio-section-title">
+              <label for="source-subtitle-editor" data-i18n="sourceEditorHeading">
+                Source Subtitles (.srt or .vtt)
+              </label>
+              <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-xs" id="btn-preset-en">EN Keynote</button>
+                <button type="button" class="btn btn-xs" id="btn-preset-pl">PL Interview</button>
+              </div>
+            </div>
+
+            <textarea
+              id="source-subtitle-editor"
+              class="code-editor"
+              spellcheck="false"
+              placeholder="Paste raw .srt or .vtt content here..."
+            ></textarea>
+
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.85rem; flex-wrap: wrap;">
+              <button type="button" id="btn-translate" class="btn btn-primary" style="flex: 1;">
+                &#9889; <span data-i18n="btnTranslateNow">Translate &amp; Publish EN / PL Tracks</span>
+              </button>
+              <button
+                type="button"
+                id="btn-force-retranslate"
+                class="btn"
+                title="Bypass local cache and re-run translation"
+                data-i18n="btnBypassCache"
+              >
+                Re-run (Bypass Cache)
+              </button>
+            </div>
+
+            <div class="progress-wrap">
+              <div class="progress-track" aria-hidden="true">
+                <div id="translate-progress" class="progress-fill"></div>
+              </div>
+              <div id="translate-status" class="status-line">
+                <span>Ready.</span>
+                <span id="translate-pct">100%</span>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.85rem; flex-wrap: wrap;">
+              <a id="download-en-vtt" class="btn btn-xs" download="subtitles_en.vtt" href="#">
+                &#8681; Download _en.vtt
+              </a>
+              <a id="download-pl-vtt" class="btn btn-xs" download="subtitles_pl.vtt" href="#">
+                &#8681; Download _pl.vtt
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: API KEYS, ENDPOINT SETTINGS & SUB-SECOND CACHE -->
+        <div class="studio-pane" id="studio-pane-settings" role="tabpanel" hidden>
+          <div class="studio-section">
+            <h3 class="studio-section-title" data-i18n="apiSettingsHeading">
+              Client-Side Translation Provider &amp; API Keys
+            </h3>
+
+            <div class="field-group">
+              <label class="field-label" for="setting-provider" data-i18n="providerLabel">
+                Translation Endpoint Mode
+              </label>
+              <select id="setting-provider">
+                <option value="auto">
+                  Auto Free (Google GTX &rarr; MyMemory CORS &rarr; Offline Dictionary)
+                </option>
+                <option value="google_gtx">
+                  Google Translate Public Endpoint (translate_a/single?client=gtx)
+                </option>
+                <option value="mymemory">
+                  MyMemory Free CORS API (api.mymemory.translated.net)
+                </option>
+                <option value="deepl_free">DeepL Free API Key (api-free.deepl.com)</option>
+                <option value="openai_compat">
+                  OpenAI / Groq / Local LLM API (/v1/chat/completions)
+                </option>
+                <option value="offline">Offline Smart Dictionary Only (Zero Network)</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">
+                <label for="setting-api-key" data-i18n="apiKeyLabel">
+                  Optional Free API Key / MyMemory Email
+                </label>
+                <span class="field-hint">localStorage only</span>
+              </div>
+              <input
+                type="password"
+                id="setting-api-key"
+                placeholder="Optional: DeepL :fx key, Groq/OpenAI key, or email"
+                autocomplete="off"
+              >
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">
+                <label for="setting-custom-endpoint" data-i18n="corsProxyLabel">
+                  Optional Custom Endpoint or CORS Proxy Prefix
+                </label>
+              </div>
+              <input
+                type="text"
+                id="setting-custom-endpoint"
+                placeholder="e.g. https://corsproxy.io/? or http://localhost:11434/v1"
+              >
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div class="field-group">
+                <label class="field-label" for="setting-max-cpl">Hard CPL Limit</label>
+                <input type="number" id="setting-max-cpl" min="20" max="60" value="42">
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="setting-llm-model">LLM Model</label>
+                <input type="text" id="setting-llm-model" value="gpt-4o-mini">
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.55rem;">
+              <button type="button" id="btn-reset-settings" class="btn" data-i18n="btnReset">
+                Reset Defaults
+              </button>
+              <button type="button" id="btn-save-settings" class="btn btn-primary" data-i18n="btnSave">
+                Save &amp; Apply
+              </button>
+            </div>
+          </div>
+
+          <div class="studio-section">
+            <h3 class="studio-section-title">
+              <span data-i18n="cacheSectionHeading">Sub-Second Offline Subtitle Cache</span>
+              <span class="badge badge-success" id="cache-stats-badge">0 cached</span>
+            </h3>
+            <p class="card-subtitle" style="margin: 0 0 0.85rem; color: var(--text-muted); font-size: 0.8rem;" data-i18n="cacheSectionDesc">
+              Maps video &amp; subtitle fingerprints in localStorage/memory so previously translated videos load instantaneously in &lt;1ms without network calls.
+            </p>
+            <button type="button" id="btn-clear-cache" class="btn btn-xs" data-i18n="btnClearCache">
+              Clear Subtitle Cache
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: WEBVTT DIAGNOSTICS & DUAL-TRACK INSPECTOR -->
+        <div class="studio-pane" id="studio-pane-inspector" role="tabpanel" hidden>
+          <div class="metrics-bar">
+            <div class="metric-box">
+              <span class="label">Direction</span>
+              <span id="metric-lang" class="value">EN &rarr; PL</span>
+            </div>
+            <div class="metric-box">
+              <span class="label">Cues</span>
+              <span id="metric-cues" class="value">0</span>
+            </div>
+            <div class="metric-box">
+              <span class="label">Max Line CPL</span>
+              <span id="metric-cpl" class="value">&le; 42</span>
+            </div>
+            <div class="metric-box">
+              <span class="label">PL \u00A0 Bound</span>
+              <span id="metric-nbsp" class="value">Active</span>
+            </div>
+          </div>
+
+          <div class="inspector-columns">
+            <div class="vtt-pane">
+              <div class="vtt-pane-header">
+                <span>English (<code>_en.vtt</code>)</span>
+                <span id="en-max-cpl-badge" class="cpl-ok">Max: 0/42 CPL</span>
+              </div>
+              <div id="cue-list-en" class="cue-scroll"></div>
+            </div>
+
+            <div class="vtt-pane">
+              <div class="vtt-pane-header">
+                <span>Polski (<code>_pl.vtt</code>)</span>
+                <span id="pl-max-cpl-badge" class="cpl-ok">Max: 0/42 CPL</span>
+              </div>
+              <div id="cue-list-pl" class="cue-scroll"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- =====================================================================
+       TOAST NOTIFICATION STACK (ACCESSIBLE RATE-LIMIT / FALLBACK ALERTS)
+       ===================================================================== -->
+  <div id="toast-container" class="toast-region" role="status" aria-live="polite"></div>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>

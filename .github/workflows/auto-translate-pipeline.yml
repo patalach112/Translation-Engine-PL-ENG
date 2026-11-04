@@ -1,0 +1,48 @@
+name: Autonomous subtitle localization
+
+on:
+  push:
+    paths:
+      - "assets/raw/**"
+      - "scripts/headless-translator.js"
+      - "web/app.js"
+      - ".github/workflows/auto-translate-pipeline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-translate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  localize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out content repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Generate WebVTT language tracks and refresh CMS catalog
+        run: node scripts/headless-translator.js --input assets/raw --output web/data/tracks --catalog web/data/catalog.json
+
+      - name: Commit generated tracks and catalog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/data/tracks web/data/catalog.json
+          if git diff --cached --quiet; then
+            echo "No generated catalog or subtitle changes to commit."
+          else
+            git commit -m "Build localized subtitle tracks and media catalog"
+            git push origin "${GITHUB_REF_NAME}"
+          fi

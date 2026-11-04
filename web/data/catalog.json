@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "interview",
+      "title": {
+        "en": "Warsaw Studio: Automated Video Captions",
+        "pl": "Studio Warszawa: Automatyczne napisy wideo"
+      },
+      "description": {
+        "en": "A Polish-language studio conversation with multilingual captions.",
+        "pl": "Rozmowa w warszawskim studiu z wielojęzycznymi napisami."
+      },
+      "aspect": "16:9",
+      "duration": "0:26",
+      "video": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "sourceSubtitle": "../assets/raw/interview.srt",
+      "sourceLanguage": "pl",
+      "tracks": {
+        "en": "data/tracks/interview_en.vtt",
+        "pl": "data/tracks/interview_pl.vtt",
+        "es": "data/tracks/interview_es.vtt",
+        "ja": "data/tracks/interview_ja.vtt"
+      },
+      "updatedAt": "2026-11-04T16:23:56.113Z"
+    },
+    {
+      "id": "keynote",
+      "title": {
+        "en": "AI Localization Keynote: Live Broadcast",
+        "pl": "Prezentacja AI Localization: Transmisja na żywo"
+      },
+      "description": {
+        "en": "Context-aware captions for live video, generated and cached in the browser.",
+        "pl": "Napisy uwzględniające kontekst transmisji wideo, generowane i buforowane w przeglądarce."
+      },
+      "aspect": "16:9",
+      "duration": "0:44",
+      "video": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      "sourceSubtitle": "../assets/raw/keynote.srt",
+      "sourceLanguage": "en",
+      "tracks": {
+        "en": "data/tracks/keynote_en.vtt",
+        "pl": "data/tracks/keynote_pl.vtt",
+        "es": "data/tracks/keynote_es.vtt",
+        "ja": "data/tracks/keynote_ja.vtt"
+      },
+      "updatedAt": "2026-11-04T16:23:56.129Z"
+    },
+    {
+      "id": "vertical-short",
+      "title": {
+        "en": "Mobile Short: Instant Bilingual Captions",
+        "pl": "Wideo pionowe: Błyskawiczne napisy dwujęzyczne"
+      },
+      "description": {
+        "en": "Portrait-format demo stream for mobile viewers.",
+        "pl": "Pionowe wideo demonstracyjne dla widzów mobilnych."
+      },
+      "aspect": "9:16",
+      "duration": "0:18",
+      "video": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+      "sourceSubtitle": "../assets/raw/vertical-short.srt",
+      "sourceLanguage": "en",
+      "tracks": {
+        "en": "data/tracks/vertical-short_en.vtt",
+        "pl": "data/tracks/vertical-short_pl.vtt",
+        "es": "data/tracks/vertical-short_es.vtt",
+        "ja": "data/tracks/vertical-short_ja.vtt"
+      },
+      "updatedAt": "2026-11-04T16:23:56.132Z"
+    }
+  ],
+  "generatedAt": "2026-11-04T16:23:56.132Z"
+}
