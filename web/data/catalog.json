@@ -14,7 +14,7 @@
       "aspect": "16:9",
       "duration": "0:26",
       "video": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      "sourceSubtitle": "../assets/raw/interview.srt",
+      "sourceSubtitle": "data/sources/interview.srt",
       "sourceLanguage": "pl",
       "tracks": {
         "en": "data/tracks/interview_en.vtt",
@@ -46,7 +46,7 @@
         "pa": "data/tracks/interview_pa.vtt",
         "tl": "data/tracks/interview_tl.vtt"
       },
-      "updatedAt": "2026-11-04T17:04:50.649Z",
+      "updatedAt": "2026-11-04T17:31:08.661Z",
       "sourceHash": "74140323425a370fbe0932e06672bc0ee2acff2da5b8cb9f6720a055c21cb4c4",
       "trackBuildVersion": "3",
       "translationMode": "offline"
@@ -64,7 +64,7 @@
       "aspect": "16:9",
       "duration": "0:44",
       "video": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-      "sourceSubtitle": "../assets/raw/keynote.srt",
+      "sourceSubtitle": "data/sources/keynote.srt",
       "sourceLanguage": "en",
       "tracks": {
         "en": "data/tracks/keynote_en.vtt",
@@ -96,7 +96,7 @@
         "pa": "data/tracks/keynote_pa.vtt",
         "tl": "data/tracks/keynote_tl.vtt"
       },
-      "updatedAt": "2026-11-04T17:04:50.688Z",
+      "updatedAt": "2026-11-04T17:31:08.665Z",
       "sourceHash": "06e1ecf73d6d2a2774000938228b647f08a6ea9ac1c1aadae07b2d6a8933ce15",
       "trackBuildVersion": "3",
       "translationMode": "offline"
@@ -114,7 +114,7 @@
       "aspect": "9:16",
       "duration": "0:18",
       "video": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-      "sourceSubtitle": "../assets/raw/vertical-short.srt",
+      "sourceSubtitle": "data/sources/vertical-short.srt",
       "sourceLanguage": "en",
       "tracks": {
         "en": "data/tracks/vertical-short_en.vtt",
@@ -146,11 +146,11 @@
         "pa": "data/tracks/vertical-short_pa.vtt",
         "tl": "data/tracks/vertical-short_tl.vtt"
       },
-      "updatedAt": "2026-11-04T17:04:50.709Z",
+      "updatedAt": "2026-11-04T17:31:08.669Z",
       "sourceHash": "27ad8d4366aa23a60c15560867f93f442ddcf9ac27790cc6ecf1cbb3b7b8ec99",
       "trackBuildVersion": "3",
       "translationMode": "offline"
     }
   ],
-  "generatedAt": "2026-11-04T17:04:50.709Z"
+  "generatedAt": "2026-11-04T17:31:08.669Z"
 }

@@ -235,6 +235,7 @@ async function run(options) {
   const outputDir = path.resolve(ROOT, options.output);
   const catalogPath = path.resolve(ROOT, options.catalog);
   const webRoot = path.join(ROOT, "web");
+  const sourceCopyDir = path.join(webRoot, "data/sources");
   const files = await walk(inputDir);
   const subtitleFiles = files.filter(file => SUBTITLE_EXTENSIONS.has(path.extname(file).toLowerCase()));
   const videoFiles = files.filter(file => VIDEO_EXTENSIONS.has(path.extname(file).toLowerCase()));
@@ -267,6 +268,9 @@ async function run(options) {
     const sourceLang = metadata.sourceLanguage
       ? normalizeLang(metadata.sourceLanguage)
       : detectSourceLang(doc);
+    const sourceCopyPath = path.join(sourceCopyDir, `${id}${path.extname(subtitleFile).toLowerCase()}`);
+    await fs.mkdir(sourceCopyDir, { recursive: true });
+    await fs.copyFile(subtitleFile, sourceCopyPath);
     const video = videosByStem.get(stem.toLowerCase());
     const existing = byId.get(id) || {};
     const videoMetadata = video ? await readSidecar(video) : {};
@@ -308,7 +312,7 @@ async function run(options) {
       aspect: metadataMerged.aspect || existing.aspect || "16:9",
       duration: metadataMerged.duration || existing.duration || "",
       video: video ? relativeWebPath(video, webRoot) : (existing.video || ""),
-      sourceSubtitle: relativeWebPath(subtitleFile, webRoot),
+      sourceSubtitle: relativeWebPath(sourceCopyPath, webRoot),
       sourceLanguage: sourceLang,
       sourceHash,
       trackBuildVersion: BUILD_VERSION,

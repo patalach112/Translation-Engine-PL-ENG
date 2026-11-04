@@ -2159,6 +2159,61 @@
     };
   }
 
+  async function translateSubtitleToLanguage(rawInput, targetLang, options = {}) {
+    if (!SUPPORTED_LANGUAGE_CODES.has(targetLang)) {
+      throw new Error(`Unsupported subtitle language: ${targetLang}`);
+    }
+    const filename = options.filename || "subtitles.srt";
+    const sourceDoc = SubtitleParser.parse(rawInput, filename);
+    if (!sourceDoc.cues.length) throw new Error("No valid subtitle cues found in source.");
+    const sourceLang = options.sourceLang || SubtitleParser.detectLanguage(sourceDoc);
+    const translator = options.translator || new ClientTranslator({
+      ...(options.settings || {}),
+      onFallback: options.onFallback
+    });
+    if (typeof translator.resetCircuit === "function") translator.resetCircuit();
+    const registerMode = options.registerMode || "auto";
+    const context = new RollingContextWindow(5, registerMode);
+    const cues = [];
+
+    for (let i = 0; i < sourceDoc.cues.length; i += 1) {
+      const cue = sourceDoc.cues[i];
+      const contextEval = context.evaluate(cue.text);
+      const { turns } = TokenShield.splitDialogueTurns(cue.text);
+      const restoredTurns = [];
+      for (const turn of turns) {
+        const masked = TokenShield.mask(turn);
+        const translated = await translator.translateSegment(
+          masked.cleanText, sourceLang, targetLang, contextEval
+        );
+        restoredTurns.push(TokenShield.unmask(translated, masked));
+      }
+      let translatedText = restoredTurns.join("\n");
+      if (targetLang === "pl") {
+        translatedText = PolishRegisterHarmonizer.harmonize(translatedText, contextEval.activeRegister);
+      }
+      const formatted = TextFormatter.formatCueText(translatedText, {
+        maxCpl: options.maxCpl || 42,
+        lang: targetLang
+      });
+      cues.push({ ...cue, text: formatted });
+      context.push(cue.index, cue.text, translatedText, contextEval.activeRegister);
+      if (typeof options.onProgress === "function") {
+        options.onProgress(Math.round(((i + 1) / sourceDoc.cues.length) * 100), i + 1, sourceDoc.cues.length);
+      }
+    }
+
+    const doc = { cues, headerBlocks: sourceDoc.headerBlocks || [], sourceFormat: "vtt" };
+    return {
+      sourceLang,
+      targetLang,
+      doc,
+      vtt: SubtitleParser.serializeWebVTT(doc),
+      cueCount: cues.length,
+      providerUsed: translator.lastUsedProvider || "unknown"
+    };
+  }
+
   /* ==========================================================================
    * 11. PRODUCTION STREAMING HUB + CREATOR STUDIO UI CONTROLLER
    * ========================================================================== */
@@ -2257,6 +2312,10 @@
     let uiLang = LocalizationManager.resolveUiLanguage();
     let activeRegister = "auto";
     let activeCatalogId = "keynote";
+    let currentCatalogRecord = null;
+    let sourceSubtitlePromise = null;
+    const dynamicLanguagePromises = new Map();
+    let languageSelectionToken = 0;
     let loadedCatalogRecords = [];
     let catalogLoadToken = 0;
     let currentVideoKey = "catalog:keynote";
@@ -2533,11 +2592,17 @@
     }
 
     trackSelectBtns.forEach((btn) => {
-      btn.addEventListener("click", () => activateSubtitleTrack(btn.dataset.trackSelect, { persistPreference: true }));
+      btn.addEventListener("click", () => {
+        const lang = btn.dataset.trackSelect;
+        if (lang === "off") {
+          languageSelectionToken += 1;
+          activateSubtitleTrack(lang, { persistPreference: true });
+        } else selectCatalogTrack(lang);
+      });
     });
     if (catalogLanguageSelect) {
       catalogLanguageSelect.addEventListener("change", () => {
-        if (catalogLanguageSelect.value) activateSubtitleTrack(catalogLanguageSelect.value, { persistPreference: true });
+        if (catalogLanguageSelect.value) selectCatalogTrack(catalogLanguageSelect.value);
       });
     }
 
@@ -2566,6 +2631,97 @@
         option.textContent = language ? `${language.nativeName} — ${language.name}` : code;
         catalogLanguageSelect.appendChild(option);
       });
+    }
+
+    async function ensureCatalogLanguage(item, lang) {
+      if (!item || !item.tracks || !item.tracks[lang] || lang === item.sourceLanguage || item.translationMode !== "offline") {
+        return currentResult && currentResult.trackDocs && currentResult.trackDocs[lang];
+      }
+      if (currentResult?.generatedLanguages?.has(lang)) return currentResult.trackDocs[lang];
+      const requestKey = `${item.id}:${lang}`;
+      if (dynamicLanguagePromises.has(requestKey)) return dynamicLanguagePromises.get(requestKey);
+
+      const work = (async () => {
+        try {
+          if (!sourceSubtitlePromise) {
+            if (!item.sourceSubtitle) throw new Error("No source subtitle is published for this video.");
+            sourceSubtitlePromise = (async () => {
+              const sourceUrl = new URL(item.sourceSubtitle, document.baseURI).toString();
+              const response = await fetch(sourceUrl);
+              if (!response.ok) throw new Error(`Source subtitle fetch failed (${response.status})`);
+              return response.text();
+            })();
+          }
+          const raw = await sourceSubtitlePromise;
+          const sourceHash = hashFingerprint(raw);
+          const cacheKey = `streampl_generated_${hashFingerprint(`${item.id}|${sourceHash}|${lang}|42`)}`;
+          let vtt = null;
+          try { vtt = localStorage.getItem(cacheKey); } catch (_error) { /* storage may be unavailable */ }
+          let result;
+          if (vtt) {
+            const doc = SubtitleParser.parse(vtt, `cached_${lang}.vtt`);
+            result = { vtt, doc, providerUsed: "instant-local-cache" };
+          } else {
+            const filename = item.sourceSubtitle.split("/").pop() || `${item.id}.srt`;
+            result = await translateSubtitleToLanguage(raw, lang, {
+              filename,
+              sourceLang: item.sourceLanguage || undefined,
+              settings: appSettings,
+              registerMode: activeRegister,
+              onFallback() {
+                showToast({
+                  title: LocalizationManager.t(uiLang, "toastFallbackTitle"),
+                  message: LocalizationManager.t(uiLang, "toastFallbackMsg"),
+                  variant: "warning"
+                });
+              }
+            });
+            if (result.providerUsed !== "offline-smart-dictionary" || lang === item.sourceLanguage) {
+              try { localStorage.setItem(cacheKey, result.vtt); } catch (_error) { /* memory result is still usable */ }
+            }
+          }
+          if (currentCatalogRecord !== item || !currentResult) return null;
+          currentResult.trackVtts[lang] = result.vtt;
+          currentResult.trackDocs[lang] = result.doc;
+          if (!currentResult.generatedLanguages) currentResult.generatedLanguages = new Set();
+          if (result.providerUsed !== "offline-smart-dictionary" || lang === item.sourceLanguage) {
+            currentResult.generatedLanguages.add(lang);
+          }
+          providerBadge.textContent = result.providerUsed;
+          if (result.providerUsed === "offline-smart-dictionary" && lang !== item.sourceLanguage) {
+            showToast({
+              title: uiLang === "pl" ? "Brak tłumaczenia online" : "Online translation unavailable",
+              message: uiLang === "pl" ? "Wyświetlany jest tekst źródłowy. Połączenie z Google GTX lub MyMemory nie powiodło się." : "Showing source text because Google GTX and MyMemory could not be reached.",
+              variant: "warning"
+            });
+          }
+          return result.doc;
+        } catch (error) {
+          if (currentCatalogRecord === item) {
+            sourceSubtitlePromise = null;
+            showToast({ title: uiLang === "pl" ? "Nie udało się przygotować napisów" : "Could not prepare subtitles", message: error.message, variant: "error" });
+          }
+          return null;
+        } finally {
+          dynamicLanguagePromises.delete(requestKey);
+        }
+      })();
+      dynamicLanguagePromises.set(requestKey, work);
+      return work;
+    }
+
+    async function selectCatalogTrack(lang) {
+      const selectionToken = ++languageSelectionToken;
+      const item = currentCatalogRecord;
+      if (item && item.translationMode === "offline" && lang !== item.sourceLanguage) {
+        catalogLanguageSelect.disabled = true;
+        providerBadge.textContent = uiLang === "pl" ? "Tłumaczenie…" : "Translating…";
+        const doc = await ensureCatalogLanguage(item, lang);
+        catalogLanguageSelect.disabled = false;
+        if (selectionToken !== languageSelectionToken || !doc || currentCatalogRecord !== item) return;
+        injectVirtualTracks(currentResult.trackVtts, lang);
+      }
+      activateSubtitleTrack(lang, { persistPreference: true });
     }
 
     function injectVirtualTracks(trackVtts, activeTrackLang) {
@@ -2928,7 +3084,11 @@
       const item = VIDEO_CATALOG[videoId];
       if (!item) return;
       const requestToken = ++catalogLoadToken;
+      languageSelectionToken += 1;
       activeCatalogId = videoId;
+      currentCatalogRecord = item;
+      sourceSubtitlePromise = null;
+      dynamicLanguagePromises.clear();
       currentVideoKey = `catalog:${videoId}`;
       currentSubFilename = item.subtitleFilename;
       playlistCards.forEach((card) => card.classList.toggle("active", card.dataset.videoId === videoId));
@@ -2990,7 +3150,11 @@
           };
           const { trackLang } = LocalizationManager.resolvePreferredSubtitleTrack();
           const selectedLang = trackLang === "off" ? "off" : (trackDocs[trackLang] ? trackLang : "en");
-          injectVirtualTracks(trackVtts, selectedLang);
+          if (selectedLang !== "off" && selectedLang !== item.sourceLanguage && item.translationMode === "offline") {
+            await ensureCatalogLanguage(item, selectedLang);
+          }
+          if (requestToken !== catalogLoadToken) return;
+          injectVirtualTracks(currentResult.trackVtts, selectedLang);
           if (selectedLang !== "off") renderInteractiveTranscript(selectedLang);
           cacheHitBadge.hidden = false;
           providerBadge.textContent = "CMS Catalog";
@@ -3098,6 +3262,9 @@
     function handleLocalVideoFile(file) {
       if (!file) return;
       activeCatalogId = null;
+      currentCatalogRecord = null;
+      sourceSubtitlePromise = null;
+      dynamicLanguagePromises.clear();
       playlistCards.forEach((c) => c.classList.remove("active"));
       if (canvasAnimId) {
         cancelAnimationFrame(canvasAnimId);
@@ -3168,6 +3335,9 @@
       const url = videoUrlInput.value.trim();
       if (!url) return;
       activeCatalogId = null;
+      currentCatalogRecord = null;
+      sourceSubtitlePromise = null;
+      dynamicLanguagePromises.clear();
       currentVideoKey = `url:${url}`;
       if (canvasAnimId) {
         cancelAnimationFrame(canvasAnimId);
@@ -3215,6 +3385,7 @@
     PolishRegisterHarmonizer,
     ClientTranslator,
     translateSubtitlePayload,
+    translateSubtitleToLanguage,
     visibleCharLength
   };
 });

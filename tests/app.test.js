@@ -14,6 +14,7 @@ const {
   TextFormatter,
   ClientTranslator,
   translateSubtitlePayload,
+  translateSubtitleToLanguage,
   visibleCharLength
 } = require("../web/app.js");
 const { normalizeLang, detectSourceLang } = require("../scripts/headless-translator.js");
@@ -322,6 +323,28 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /id="catalog-language-select"/);
 });
 
+test("Generic language translator creates timestamp-preserving tracks for any supported locale", async () => {
+  const raw = ["1", "00:00:01,200 --> 00:00:03,500", "<i>Hello, world.</i>"].join("\n");
+  const translator = {
+    lastUsedProvider: "test-mock",
+    resetCircuit() {},
+    async translateSegment(text, source, target) {
+      assert.equal(source, "en");
+      assert.equal(target, "ja");
+      return `こんにちは ${text}`;
+    }
+  };
+  const result = await translateSubtitleToLanguage(raw, "ja", {
+    filename: "sample.srt", sourceLang: "en", translator
+  });
+  assert.equal(result.targetLang, "ja");
+  assert.equal(result.providerUsed, "test-mock");
+  assert.ok(result.vtt.startsWith(`WEBVTT\n\n`));
+  assert.ok(result.vtt.includes("00:00:01.200 --> 00:00:03.500"));
+  assert.ok(result.vtt.includes("<i>こんにちは Hello, world.</i>"));
+  assert.deepEqual(SubtitleParser.validateWebVTT(result.vtt, result.doc, 42), []);
+});
+
 test("Global source-language detection and locale normalization cover major writing systems", () => {
   const doc = (text) => ({ cues: [{ text }] });
   assert.equal(normalizeLang("zh-TW"), "zh-CN");
@@ -372,6 +395,8 @@ test("Headless localization workflow and CMS catalog are zero-dependency and sta
   assert.ok(catalog.items.length >= 3);
   for (const item of catalog.items) {
     assert.ok(item.title && item.description && item.tracks);
+    assert.ok(item.sourceSubtitle);
+    assert.ok(fs.existsSync(path.resolve(root, "web", item.sourceSubtitle)));
     for (const language of SUPPORTED_LANGUAGES.map((entry) => entry.code)) {
       assert.ok(item.tracks[language], `${item.id} missing ${language} track path`);
       const trackPath = path.resolve(root, "web", item.tracks[language]);
