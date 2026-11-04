@@ -17,14 +17,15 @@ const {
   TextFormatter,
   ClientTranslator,
   RollingContextWindow,
-  PolishRegisterHarmonizer
+  PolishRegisterHarmonizer,
+  SUPPORTED_LANGUAGES
 } = require("../web/app.js");
 
 const ROOT = path.resolve(__dirname, "..");
-const LANGUAGES = ["en", "pl", "es", "ja"];
+const LANGUAGES = SUPPORTED_LANGUAGES.map(language => language.code);
 const SUBTITLE_EXTENSIONS = new Set([".srt", ".vtt", ".ass", ".ssa"]);
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm"]);
-const BUILD_VERSION = "1";
+const BUILD_VERSION = "3";
 
 function parseArgs(argv) {
   const options = { input: "assets/raw", output: "web/data/tracks", catalog: "web/data/catalog.json", offline: false };
@@ -78,8 +79,52 @@ function relativeWebPath(file, webRoot) {
 }
 
 function normalizeLang(lang) {
-  const value = String(lang || "").toLowerCase();
-  return value.startsWith("pl") ? "pl" : value.startsWith("ja") ? "ja" : value.startsWith("es") ? "es" : "en";
+  const value = String(lang || "").trim().toLowerCase();
+  if (value.startsWith("zh")) return "zh-CN";
+  const match = SUPPORTED_LANGUAGES.find(language =>
+    language.code.toLowerCase() === value || value.startsWith(`${language.code.toLowerCase()}-`)
+  );
+  return match ? match.code : "en";
+}
+
+function detectSourceLang(doc) {
+  const text = (doc.cues || []).map(cue => cue.text).join(" ");
+  if (/[\u3040-\u30ff]/.test(text)) return "ja";
+  if (/[\uac00-\ud7af]/.test(text)) return "ko";
+  if (/[\u0e00-\u0e7f]/.test(text)) return "th";
+  if (/[\u0980-\u09ff]/.test(text)) return "bn";
+  if (/[\u0b80-\u0bff]/.test(text)) return "ta";
+  if (/[\u0a00-\u0a7f]/.test(text)) return "pa";
+  if (/[\u0900-\u097f]/.test(text)) return "hi";
+  if (/[\u0600-\u06ff]/.test(text)) return "ar";
+  if (/[\u4e00-\u9fff]/.test(text)) return "zh-CN";
+  if (/[\u0400-\u04ff]/.test(text)) return /[іїєґ]/i.test(text) ? "uk" : "ru";
+  const known = SubtitleParser.detectLanguage(doc);
+  if (known === "pl") return known;
+
+  // Lightweight stop-word scoring for Latin-script sources. Supply an explicit
+  // sourceLanguage in a sidecar for short/ambiguous captions.
+  const words = text.toLowerCase().match(/[a-zà-ž]+/g) || [];
+  const indicators = {
+    es: new Set(["el", "la", "los", "las", "que", "por", "para", "una", "como", "está", "gracias"]),
+    de: new Set(["der", "die", "das", "und", "ist", "nicht", "mit", "für", "ich", "wir"]),
+    fr: new Set(["le", "la", "les", "des", "et", "est", "une", "pour", "avec", "vous"]),
+    pt: new Set(["o", "os", "as", "que", "não", "uma", "para", "com", "você", "está"]),
+    it: new Set(["il", "lo", "gli", "che", "non", "una", "per", "con", "sono"]),
+    nl: new Set(["het", "een", "de", "en", "niet", "voor", "met", "zijn", "jullie"]),
+    tr: new Set(["bir", "ve", "için", "değil", "bu", "ile", "nasıl", "teşekkür"]),
+    id: new Set(["yang", "dan", "untuk", "dengan", "tidak", "ini", "kami", "terima"]),
+    vi: new Set(["và", "của", "không", "một", "được", "cho", "với", "xin"])
+  };
+  const scores = Object.fromEntries(Object.entries(indicators).map(([code, terms]) => [
+    code, words.reduce((score, word) => score + Number(terms.has(word)), 0)
+  ]));
+  if (/[ßäöü]/i.test(text)) scores.de += 2;
+  if (/[¿¡ñ]/i.test(text)) scores.es += 2;
+  if (/[àâçéèêëîïôùûüÿœ]/i.test(text)) scores.fr += 1;
+  if (/[ãõ]/i.test(text)) scores.pt += 2;
+  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  return ranked[0][1] >= 2 ? ranked[0][0] : known;
 }
 
 function titlePair(value, fallback) {
@@ -219,7 +264,9 @@ async function run(options) {
     subtitleStems.add(stem.toLowerCase());
     const metadata = await readSidecar(subtitleFile);
     const id = slugify(metadata.id || stem);
-    const sourceLang = normalizeLang(metadata.sourceLanguage || SubtitleParser.detectLanguage(doc));
+    const sourceLang = metadata.sourceLanguage
+      ? normalizeLang(metadata.sourceLanguage)
+      : detectSourceLang(doc);
     const video = videosByStem.get(stem.toLowerCase());
     const existing = byId.get(id) || {};
     const videoMetadata = video ? await readSidecar(video) : {};
@@ -325,4 +372,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { parseArgs, run, slugify, translateGoogle };
+module.exports = { parseArgs, run, slugify, normalizeLang, detectSourceLang, translateGoogle };

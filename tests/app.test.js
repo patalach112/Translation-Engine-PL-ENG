@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const {
   SAMPLE_SUBTITLES,
+  SUPPORTED_LANGUAGES,
   UI_DICTIONARY,
   LocalizationManager,
   SubtitleCacheStore,
@@ -15,6 +16,7 @@ const {
   translateSubtitlePayload,
   visibleCharLength
 } = require("../web/app.js");
+const { normalizeLang, detectSourceLang } = require("../scripts/headless-translator.js");
 
 function createMockStorage() {
   const map = new Map();
@@ -171,7 +173,15 @@ test("LocalizationManager detects Polish vs non-Polish browser language and pers
   );
   assert.deepEqual(
     LocalizationManager.resolvePreferredSubtitleTrack(storage, { language: "fr-FR" }),
-    { trackLang: "en", source: "browser" }
+    { trackLang: "fr", source: "browser" }
+  );
+  assert.deepEqual(
+    LocalizationManager.resolvePreferredSubtitleTrack(storage, { language: "de-DE" }),
+    { trackLang: "de", source: "browser" }
+  );
+  assert.deepEqual(
+    LocalizationManager.resolvePreferredSubtitleTrack(storage, { language: "ja-JP" }),
+    { trackLang: "ja", source: "browser" }
   );
 
   // Saved user track preference overrides browser locale across sessions/videos
@@ -180,6 +190,15 @@ test("LocalizationManager detects Polish vs non-Polish browser language and pers
     LocalizationManager.resolvePreferredSubtitleTrack(storage, { language: "en-US" }),
     { trackLang: "pl", source: "saved" }
   );
+
+  LocalizationManager.savePreferredSubtitleTrack("ja", storage);
+  assert.deepEqual(
+    LocalizationManager.resolvePreferredSubtitleTrack(storage, { language: "en-US" }),
+    { trackLang: "ja", source: "saved" }
+  );
+  assert.ok(SUPPORTED_LANGUAGES.length >= 25);
+  assert.ok(SUPPORTED_LANGUAGES.some((language) => language.code === "zh-CN"));
+  assert.ok(SUPPORTED_LANGUAGES.some((language) => language.code === "de"));
 
   // Ensure complete parity between EN and PL UI dictionaries
   assert.deepEqual(
@@ -300,6 +319,17 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /data-track-select="en"[\s\S]*?English \(CC\)/);
   assert.match(html, /id="creator-studio-backdrop"[^>]*\bhidden\b/);
   assert.match(html, /id="btn-aspect-9-16"/);
+  assert.match(html, /id="catalog-language-select"/);
+});
+
+test("Global source-language detection and locale normalization cover major writing systems", () => {
+  const doc = (text) => ({ cues: [{ text }] });
+  assert.equal(normalizeLang("zh-TW"), "zh-CN");
+  assert.equal(normalizeLang("de-DE"), "de");
+  assert.equal(detectSourceLang(doc("Das ist nicht für die neue Welt.")), "de");
+  assert.equal(detectSourceLang(doc("今日は日本語の字幕をテストします。")), "ja");
+  assert.equal(detectSourceLang(doc("这是一个中文字幕测试。")), "zh-CN");
+  assert.equal(detectSourceLang(doc("Привет, как ваши дела сегодня?")), "ru");
 });
 
 test("SubtitleParser imports ASS/SSA cues, keeps override positions, and converts basic style tags", () => {
@@ -342,7 +372,8 @@ test("Headless localization workflow and CMS catalog are zero-dependency and sta
   assert.ok(catalog.items.length >= 3);
   for (const item of catalog.items) {
     assert.ok(item.title && item.description && item.tracks);
-    for (const language of ["en", "pl", "es", "ja"]) {
+    for (const language of SUPPORTED_LANGUAGES.map((entry) => entry.code)) {
+      assert.ok(item.tracks[language], `${item.id} missing ${language} track path`);
       const trackPath = path.resolve(root, "web", item.tracks[language]);
       const vtt = fs.readFileSync(trackPath, "utf8");
       assert.ok(vtt.startsWith("WEBVTT\n\n"), `${item.id}/${language} missing WebVTT header`);

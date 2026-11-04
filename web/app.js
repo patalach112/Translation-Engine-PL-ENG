@@ -25,8 +25,40 @@
   "use strict";
 
   /* ==========================================================================
-   * 1. SAMPLE SUBTITLES, CURATED HUB CATALOG & UI TRANSLATIONS (EN / PL)
+   * 1. SUPPORTED LOCALES, SAMPLE SUBTITLES & UI TRANSLATIONS
    * ========================================================================== */
+
+  const SUPPORTED_LANGUAGES = [
+    { code: "en", name: "English", nativeName: "English" },
+    { code: "pl", name: "Polish", nativeName: "Polski" },
+    { code: "es", name: "Spanish", nativeName: "Español" },
+    { code: "ja", name: "Japanese", nativeName: "日本語" },
+    { code: "zh-CN", name: "Chinese (Simplified)", nativeName: "简体中文" },
+    { code: "de", name: "German", nativeName: "Deutsch" },
+    { code: "fr", name: "French", nativeName: "Français" },
+    { code: "ar", name: "Arabic", nativeName: "العربية" },
+    { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
+    { code: "pt", name: "Portuguese", nativeName: "Português" },
+    { code: "ru", name: "Russian", nativeName: "Русский" },
+    { code: "bn", name: "Bengali", nativeName: "বাংলা" },
+    { code: "id", name: "Indonesian", nativeName: "Bahasa Indonesia" },
+    { code: "ur", name: "Urdu", nativeName: "اردو" },
+    { code: "tr", name: "Turkish", nativeName: "Türkçe" },
+    { code: "it", name: "Italian", nativeName: "Italiano" },
+    { code: "ko", name: "Korean", nativeName: "한국어" },
+    { code: "vi", name: "Vietnamese", nativeName: "Tiếng Việt" },
+    { code: "fa", name: "Persian", nativeName: "فارسی" },
+    { code: "sw", name: "Swahili", nativeName: "Kiswahili" },
+    { code: "nl", name: "Dutch", nativeName: "Nederlands" },
+    { code: "th", name: "Thai", nativeName: "ไทย" },
+    { code: "ms", name: "Malay", nativeName: "Bahasa Melayu" },
+    { code: "uk", name: "Ukrainian", nativeName: "Українська" },
+    { code: "ta", name: "Tamil", nativeName: "தமிழ்" },
+    { code: "mr", name: "Marathi", nativeName: "मराठी" },
+    { code: "pa", name: "Punjabi", nativeName: "ਪੰਜਾਬੀ" },
+    { code: "tl", name: "Filipino", nativeName: "Filipino" }
+  ];
+  const SUPPORTED_LANGUAGE_CODES = new Set(SUPPORTED_LANGUAGES.map((language) => language.code));
 
   const SAMPLE_SUBTITLES = {
     en_keynote: [
@@ -172,6 +204,7 @@
       btnCreatorStudio: "Creator Studio",
       subtitlesLabel: "Subtitles:",
       captionsOff: "Off",
+      moreLanguages: "More languages…",
       badgeCached: "Instant Cache",
       btnTheater: "Theater",
       featuredVideosHeading: "Featured Streams",
@@ -231,6 +264,7 @@
       btnCreatorStudio: "Panel Twórcy",
       subtitlesLabel: "Napisy:",
       captionsOff: "Wyłącz",
+      moreLanguages: "Więcej języków…",
       badgeCached: "Pamięć podręczna",
       btnTheater: "Tryb kinowy",
       featuredVideosHeading: "Polecane materiały",
@@ -449,16 +483,23 @@
     detectBrowserLanguage(nav = typeof navigator !== "undefined" ? navigator : null) {
       if (!nav) return "en";
       const candidates = [];
-      if (Array.isArray(nav.languages) && nav.languages.length > 0) {
-        candidates.push(nav.languages[0]);
-      }
-      if (nav.language) {
-        candidates.push(nav.language);
-      }
+      if (Array.isArray(nav.languages) && nav.languages.length > 0) candidates.push(...nav.languages);
+      if (nav.language) candidates.push(nav.language);
+      return candidates.some((locale) => String(locale || "").trim().toLowerCase().startsWith("pl")) ? "pl" : "en";
+    },
+
+    detectBrowserSubtitleLanguage(nav = typeof navigator !== "undefined" ? navigator : null) {
+      if (!nav) return "en";
+      const candidates = [];
+      if (Array.isArray(nav.languages) && nav.languages.length > 0) candidates.push(...nav.languages);
+      if (nav.language) candidates.push(nav.language);
       for (const locale of candidates) {
-        if (String(locale || "").trim().toLowerCase().startsWith("pl")) {
-          return "pl";
-        }
+        const normalized = String(locale || "").trim().toLowerCase();
+        if (normalized.startsWith("zh")) return "zh-CN";
+        const match = SUPPORTED_LANGUAGES.find((language) =>
+          normalized === language.code.toLowerCase() || normalized.startsWith(`${language.code.toLowerCase()}-`)
+        );
+        if (match) return match.code;
       }
       return "en";
     },
@@ -500,13 +541,13 @@
     ) {
       try {
         const saved = storage && storage.getItem(STORAGE_KEYS.PREFERRED_TRACK);
-        if (saved === "pl" || saved === "en" || saved === "off") {
+        if (SUPPORTED_LANGUAGE_CODES.has(saved) || saved === "off") {
           return { trackLang: saved, source: "saved" };
         }
       } catch (_e) {
         // Ignore storage errors
       }
-      const detected = LocalizationManager.detectBrowserLanguage(nav);
+      const detected = LocalizationManager.detectBrowserSubtitleLanguage(nav);
       return { trackLang: detected, source: "browser" };
     },
 
@@ -514,7 +555,7 @@
       trackLang,
       storage = typeof localStorage !== "undefined" ? localStorage : null
     ) {
-      if (!["pl", "en", "off"].includes(trackLang)) return;
+      if (!SUPPORTED_LANGUAGE_CODES.has(trackLang) && trackLang !== "off") return;
       try {
         if (storage) storage.setItem(STORAGE_KEYS.PREFERRED_TRACK, trackLang);
       } catch (_e) {
@@ -2145,6 +2186,7 @@
     const trackSelectBtns = Array.from(
       document.querySelectorAll("[data-track-select]")
     );
+    const catalogLanguageSelect = document.getElementById("catalog-language-select");
     const cacheHitBadge = document.getElementById("cache-hit-badge");
     const providerBadge = document.getElementById("active-provider-badge");
     const currentVideoTitle = document.getElementById("current-video-title");
@@ -2412,14 +2454,17 @@
      * ---------------------------------------------------------------------- */
     function updateSavedPrefBadge() {
       const resolved = LocalizationManager.resolvePreferredSubtitleTrack();
-      const label = resolved.trackLang.toUpperCase();
+      const language = SUPPORTED_LANGUAGES.find((item) => item.code === resolved.trackLang);
+      const label = resolved.trackLang === "off" ? "Off" : (language ? language.nativeName : resolved.trackLang);
       savedPrefIndicator.textContent = `${LocalizationManager.t(uiLang, "prefIndicatorPrefix")}: ${label}`;
     }
 
     function renderInteractiveTranscript(activeTrackLang) {
       if (!currentResult) return;
-      const effectiveLang = activeTrackLang === "en" ? "en" : "pl";
-      const doc = effectiveLang === "en" ? currentResult.enDoc : currentResult.plDoc;
+      const docs = currentResult.trackDocs || { en: currentResult.enDoc, pl: currentResult.plDoc };
+      const effectiveLang = docs[activeTrackLang] ? activeTrackLang : (docs.pl ? "pl" : "en");
+      const doc = docs[effectiveLang];
+      if (!doc) return;
       transcriptLangBadge.textContent = effectiveLang.toUpperCase();
       transcriptListEl.innerHTML = "";
 
@@ -2461,97 +2506,103 @@
       });
     });
 
+    function normalizeTrackCode(value) {
+      const code = String(value || "").toLowerCase();
+      const language = SUPPORTED_LANGUAGES.find((item) => item.code.toLowerCase() === code);
+      return language ? language.code : (code === "off" ? "off" : String(value || ""));
+    }
+
     function activateSubtitleTrack(lang, { persistPreference = true } = {}) {
+      lang = normalizeTrackCode(lang);
       suppressNativeTrackEvent = true;
       const tracks = videoEl.textTracks;
       for (let i = 0; i < tracks.length; i += 1) {
-        tracks[i].mode = tracks[i].language === lang ? "showing" : "disabled";
+        tracks[i].mode = normalizeTrackCode(tracks[i].language) === lang ? "showing" : "disabled";
       }
-      setTimeout(() => {
-        suppressNativeTrackEvent = false;
-      }, 50);
+      setTimeout(() => { suppressNativeTrackEvent = false; }, 50);
 
-      trackSelectBtns.forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.trackSelect === lang);
-      });
-
+      trackSelectBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.trackSelect === lang));
+      if (catalogLanguageSelect) {
+        catalogLanguageSelect.value = ["en", "pl", "off"].includes(lang) ? "" : lang;
+      }
       if (persistPreference) {
         LocalizationManager.savePreferredSubtitleTrack(lang);
         updateSavedPrefBadge();
       }
-
-      if (lang === "pl" || lang === "en") {
-        renderInteractiveTranscript(lang);
-      }
+      if (lang !== "off") renderInteractiveTranscript(lang);
     }
 
     trackSelectBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        activateSubtitleTrack(btn.dataset.trackSelect, { persistPreference: true });
-      });
+      btn.addEventListener("click", () => activateSubtitleTrack(btn.dataset.trackSelect, { persistPreference: true }));
     });
+    if (catalogLanguageSelect) {
+      catalogLanguageSelect.addEventListener("change", () => {
+        if (catalogLanguageSelect.value) activateSubtitleTrack(catalogLanguageSelect.value, { persistPreference: true });
+      });
+    }
 
     if (videoEl.textTracks && videoEl.textTracks.addEventListener) {
       videoEl.textTracks.addEventListener("change", () => {
         if (suppressNativeTrackEvent) return;
         let active = "off";
         for (let i = 0; i < videoEl.textTracks.length; i += 1) {
-          if (videoEl.textTracks[i].mode === "showing") {
-            active = videoEl.textTracks[i].language;
-            break;
-          }
+          if (videoEl.textTracks[i].mode === "showing") { active = normalizeTrackCode(videoEl.textTracks[i].language); break; }
         }
-        trackSelectBtns.forEach((btn) => {
-          btn.classList.toggle("active", btn.dataset.trackSelect === active);
-        });
+        trackSelectBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.trackSelect === active));
+        if (catalogLanguageSelect) catalogLanguageSelect.value = ["en", "pl", "off"].includes(active) ? "" : active;
         LocalizationManager.savePreferredSubtitleTrack(active);
         updateSavedPrefBadge();
-        if (active === "pl" || active === "en") {
-          renderInteractiveTranscript(active);
-        }
+        if (active !== "off") renderInteractiveTranscript(active);
       });
     }
 
-    function injectVirtualTracks(enVtt, plVtt, activeTrackLang) {
-      Array.from(videoEl.querySelectorAll("track")).forEach((tr) => tr.remove());
-      if (currentTrackUrls.en) URL.revokeObjectURL(currentTrackUrls.en);
-      if (currentTrackUrls.pl) URL.revokeObjectURL(currentTrackUrls.pl);
+    function renderCatalogLanguageOptions(trackMap) {
+      if (!catalogLanguageSelect) return;
+      while (catalogLanguageSelect.options.length > 1) catalogLanguageSelect.remove(1);
+      Object.keys(trackMap || {}).filter((code) => !["en", "pl"].includes(code)).forEach((code) => {
+        const language = SUPPORTED_LANGUAGES.find((item) => item.code === code);
+        const option = document.createElement("option");
+        option.value = code;
+        option.textContent = language ? `${language.nativeName} — ${language.name}` : code;
+        catalogLanguageSelect.appendChild(option);
+      });
+    }
 
-      const enBlob = new Blob([enVtt], { type: "text/vtt;charset=utf-8" });
-      const plBlob = new Blob([plVtt], { type: "text/vtt;charset=utf-8" });
-
-      currentTrackUrls.en = URL.createObjectURL(enBlob);
-      currentTrackUrls.pl = URL.createObjectURL(plBlob);
-
+    function injectVirtualTracks(trackVtts, activeTrackLang) {
+      Array.from(videoEl.querySelectorAll("track")).forEach((track) => track.remove());
+      Object.entries(currentTrackUrls).forEach(([code, url]) => {
+        if (code !== "video" && url) URL.revokeObjectURL(url);
+      });
+      const videoUrl = currentTrackUrls.video;
+      currentTrackUrls = { video: videoUrl };
       const baseStem = currentSubFilename
         .replace(/\.[^.]+$/, "")
         .replace(/[._-](?:en|pl|eng|pol)$/i, "");
 
-      downloadEnLink.href = currentTrackUrls.en;
-      downloadEnLink.download = `${baseStem || "subtitles"}_en.vtt`;
-      downloadPlLink.href = currentTrackUrls.pl;
-      downloadPlLink.download = `${baseStem || "subtitles"}_pl.vtt`;
-
-      const trackPl = document.createElement("track");
-      trackPl.kind = "subtitles";
-      trackPl.label = "Polski";
-      trackPl.srclang = "pl";
-      trackPl.src = currentTrackUrls.pl;
-      if (activeTrackLang === "pl") trackPl.default = true;
-
-      const trackEn = document.createElement("track");
-      trackEn.kind = "subtitles";
-      trackEn.label = "English";
-      trackEn.srclang = "en";
-      trackEn.src = currentTrackUrls.en;
-      if (activeTrackLang === "en") trackEn.default = true;
-
-      videoEl.appendChild(trackPl);
-      videoEl.appendChild(trackEn);
-
-      requestAnimationFrame(() => {
-        activateSubtitleTrack(activeTrackLang, { persistPreference: false });
+      Object.entries(trackVtts || {}).forEach(([code, vtt]) => {
+        const blob = new Blob([vtt], { type: "text/vtt;charset=utf-8" });
+        const objectUrl = URL.createObjectURL(blob);
+        currentTrackUrls[code] = objectUrl;
+        const descriptor = SUPPORTED_LANGUAGES.find((item) => item.code === code);
+        const track = document.createElement("track");
+        track.kind = "subtitles";
+        track.label = descriptor ? descriptor.nativeName : code;
+        track.srclang = code;
+        track.src = objectUrl;
+        if (activeTrackLang === code) track.default = true;
+        videoEl.appendChild(track);
       });
+
+      if (trackVtts.en) {
+        downloadEnLink.href = currentTrackUrls.en;
+        downloadEnLink.download = `${baseStem || "subtitles"}_en.vtt`;
+      }
+      if (trackVtts.pl) {
+        downloadPlLink.href = currentTrackUrls.pl;
+        downloadPlLink.download = `${baseStem || "subtitles"}_pl.vtt`;
+      }
+      renderCatalogLanguageOptions(trackVtts);
+      requestAnimationFrame(() => activateSubtitleTrack(activeTrackLang, { persistPreference: false }));
     }
 
     /* ----------------------------------------------------------------------
@@ -2705,11 +2756,13 @@
         });
 
         currentResult = result;
+        currentResult.trackDocs = { en: result.enDoc, pl: result.plDoc };
 
         // Resolve viewer's preferred or browser-detected subtitle track
         const { trackLang } = LocalizationManager.resolvePreferredSubtitleTrack();
-        injectVirtualTracks(result.enVtt, result.plVtt, trackLang);
-        renderInteractiveTranscript(trackLang === "en" ? "en" : "pl");
+        const selectedLang = ["en", "pl"].includes(trackLang) ? trackLang : (trackLang === "off" ? "off" : "pl");
+        injectVirtualTracks({ en: result.enVtt, pl: result.plVtt }, selectedLang);
+        if (selectedLang !== "off") renderInteractiveTranscript(selectedLang);
 
         // Update Diagnostics & Cache Badges
         cacheHitBadge.hidden = !result.fromCache;
@@ -2837,7 +2890,8 @@
         thumb.className = "video-card-thumb";
         const tag = document.createElement("span");
         tag.className = "video-card-tag";
-        tag.textContent = `${record.aspect || "16:9"} • ${(record.sourceLanguage || "en").toUpperCase()} → EN / PL / ES / JA`;
+        const languageCount = Object.keys(record.tracks || {}).length;
+        tag.textContent = `${record.aspect || "16:9"} • ${(record.sourceLanguage || "en").toUpperCase()} source • ${languageCount} CC`;
         const duration = document.createElement("span");
         duration.className = "badge";
         duration.textContent = record.duration || "CC";
@@ -2877,32 +2931,53 @@
         URL.revokeObjectURL(currentTrackUrls.video);
         currentTrackUrls.video = null;
       }
+      Array.from(videoEl.querySelectorAll("track")).forEach((track) => track.remove());
+      Object.entries(currentTrackUrls).forEach(([code, url]) => {
+        if (code !== "video" && url) URL.revokeObjectURL(url);
+      });
+      currentTrackUrls = { video: null };
+      renderCatalogLanguageOptions({});
+      currentResult = null;
+      transcriptListEl.replaceChildren();
+      cacheHitBadge.hidden = true;
       videoEl.querySelectorAll("source").forEach((source) => source.remove());
       videoEl.removeAttribute("src");
       if (item.videoUrl) videoEl.src = item.videoUrl;
       videoEl.load();
 
-      if (item.tracks && item.tracks.en && item.tracks.pl) {
+      if (item.tracks && Object.keys(item.tracks).length) {
         try {
           const resolveCatalogUrl = (path) => new URL(path, document.baseURI).toString();
-          const [enResponse, plResponse] = await Promise.all([
-            fetch(resolveCatalogUrl(item.tracks.en)),
-            fetch(resolveCatalogUrl(item.tracks.pl))
-          ]);
-          if (!enResponse.ok || !plResponse.ok) throw new Error("Catalog subtitle track unavailable");
-          const [enVtt, plVtt] = await Promise.all([enResponse.text(), plResponse.text()]);
+          const loaded = await Promise.all(Object.entries(item.tracks).map(async ([code, trackPath]) => {
+            try {
+              const response = await fetch(resolveCatalogUrl(trackPath));
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              return [code, await response.text()];
+            } catch (error) {
+              if (code === "en" || code === "pl") throw error;
+              console.warn(`Skipping unavailable ${code} subtitle track for ${videoId}:`, error);
+              return null;
+            }
+          }));
+          const trackVtts = Object.fromEntries(loaded.filter(Boolean));
+          if (!trackVtts.en || !trackVtts.pl) throw new Error("English and Polish catalog tracks are required");
           if (requestToken !== catalogLoadToken) return;
-          const enDoc = SubtitleParser.parse(enVtt, "catalog_en.vtt");
-          const plDoc = SubtitleParser.parse(plVtt, "catalog_pl.vtt");
+          const trackDocs = Object.fromEntries(Object.entries(trackVtts).map(([code, vtt]) => [
+            code, SubtitleParser.parse(vtt, `catalog_${code}.vtt`)
+          ]));
+          const enDoc = trackDocs.en;
+          const plDoc = trackDocs.pl;
           currentResult = {
-            enDoc, plDoc, enVtt, plVtt, cueCount: Math.max(enDoc.cues.length, plDoc.cues.length),
+            enDoc, plDoc, trackDocs, trackVtts,
+            cueCount: Math.max(...Object.values(trackDocs).map((doc) => doc.cues.length)),
             detectedLang: item.sourceLanguage || "en", targetLang: item.sourceLanguage === "en" ? "pl" : "en",
             providerUsed: "catalog", fromCache: true,
             maxCplEn: measureDocumentCpl(enDoc), maxCplPl: measureDocumentCpl(plDoc)
           };
           const { trackLang } = LocalizationManager.resolvePreferredSubtitleTrack();
-          injectVirtualTracks(enVtt, plVtt, trackLang);
-          renderInteractiveTranscript(trackLang === "en" ? "en" : "pl");
+          const selectedLang = trackLang === "off" ? "off" : (trackDocs[trackLang] ? trackLang : "en");
+          injectVirtualTracks(trackVtts, selectedLang);
+          if (selectedLang !== "off") renderInteractiveTranscript(selectedLang);
           cacheHitBadge.hidden = false;
           providerBadge.textContent = "CMS Catalog";
           transcriptListEl.setAttribute("aria-label", `${videoId} transcript`);
@@ -3036,7 +3111,7 @@
           plDoc,
           fromCache: true
         };
-        injectVirtualTracks(cachedForVideo.enVtt, cachedForVideo.plVtt, trackLang);
+        injectVirtualTracks({ en: cachedForVideo.enVtt, pl: cachedForVideo.plVtt }, trackLang === "off" ? "off" : (["en", "pl"].includes(trackLang) ? trackLang : "pl"));
         renderInteractiveTranscript(trackLang === "en" ? "en" : "pl");
         cacheHitBadge.hidden = false;
       }
@@ -3114,6 +3189,7 @@
 
   return {
     SAMPLE_SUBTITLES,
+    SUPPORTED_LANGUAGES,
     VIDEO_CATALOG,
     UI_DICTIONARY,
     LocalizationManager,
