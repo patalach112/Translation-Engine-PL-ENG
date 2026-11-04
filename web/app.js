@@ -2864,6 +2864,20 @@
       videoEl.play().catch(() => {});
     }
 
+    videoEl.addEventListener("error", () => {
+      if (videoEl.srcObject) return;
+      activateOfflineStudioStream(playerStage.classList.contains("aspect-9-16"));
+      if (providerBadge) providerBadge.textContent = "Offline Demo Stream";
+      showToast({
+        title: uiLang === "pl" ? "Uruchomiono strumień demonstracyjny" : "Demo stream started",
+        message: uiLang === "pl"
+          ? "Źródłowe wideo jest niedostępne lub ma nieobsługiwany format. Odtwarzany jest lokalny strumień zastępczy."
+          : "The sample video is unavailable or unsupported. A generated in-browser demo stream is playing instead.",
+        variant: "warning",
+        durationMs: 6500
+      });
+    });
+
     btnMockStream.addEventListener("click", () => {
       activateOfflineStudioStream(playerStage.classList.contains("aspect-9-16"));
     });
