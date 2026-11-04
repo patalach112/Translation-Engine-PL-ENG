@@ -131,6 +131,7 @@
                 >
                 Your browser does not support HTML5 video.
               </video>
+              <div id="live-caption-overlay" class="live-caption-overlay" aria-live="polite" aria-atomic="true" hidden></div>
             </div>
           </div>
 
@@ -170,6 +171,35 @@
               </button>
             </div>
           </div>
+
+          <section class="live-caption-panel" aria-labelledby="live-caption-heading">
+            <div class="live-caption-heading-row">
+              <div>
+                <h2 id="live-caption-heading" data-i18n="liveCaptionHeading">Live audio captions</h2>
+                <p data-i18n="liveCaptionDescription">Transcribe speech and translate it into subtitles while this video plays.</p>
+              </div>
+              <span id="live-caption-status" class="live-caption-status" role="status" aria-live="polite" data-i18n="liveCaptionIdle">Not listening</span>
+            </div>
+            <div class="live-caption-controls">
+              <label>
+                <span data-i18n="spokenLanguageLabel">Spoken language</span>
+                <select id="live-source-language" class="language-picker" aria-label="Spoken language"></select>
+              </label>
+              <label>
+                <span data-i18n="captionLanguageLabel">Subtitle language</span>
+                <select id="live-target-language" class="language-picker" aria-label="Subtitle language"></select>
+              </label>
+              <label>
+                <span data-i18n="audioSourceLabel">Audio source</span>
+                <select id="live-audio-source" class="language-picker" aria-label="Audio source">
+                  <option value="tab" data-i18n="audioSourceTab">This browser tab's audio</option>
+                  <option value="microphone" data-i18n="audioSourceMic">Microphone / speakers</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-primary" id="btn-live-captions" data-i18n="btnStartListening">Start live captions</button>
+            </div>
+            <p class="live-caption-privacy" data-i18n="liveCaptionPrivacy">Tab audio requires sharing this tab with audio enabled. Microphone mode hears nearby speakers. Browser speech recognition and the selected translation provider may process audio or transcript data online.</p>
+          </section>
 
           <!-- Video Title & Description -->
           <div class="video-meta-panel">

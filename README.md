@@ -6,7 +6,7 @@ A **100% client-side Vanilla JavaScript (ES6+), HTML5, and CSS** video hub and s
 
 - Open [`web/index.html`](./web/index.html) directly in a modern browser to try the bundled viewer/demo. Browser `file://` security restrictions prevent fetching the JSON catalog, so direct-open mode uses the built-in demo fallback.
 - For the complete dynamic playlist and CMS catalog, publish this repository with GitHub Pages or serve the repository root over HTTP. The root [`index.html`](./index.html) forwards to `web/` using relative paths (including under a project-site URL such as `https://user.github.io/repository/`).
-- Use the prominent **Polski (CC)** / **English (CC)** buttons or native video CC menu. The viewer also supports 16:9 and 9:16 aspect modes, an interactive transcript, theme/language preferences, and a hidden Creator Studio.
+- Use the prominent **Polski (CC)** / **English (CC)** buttons or native video CC menu. To caption spoken Japanese (or another speech-recognition language) live, use **Live audio captions**, select the spoken and subtitle languages, then start listening. Chrome/Edge support is recommended: share this tab with tab audio enabled for direct capture, or choose microphone mode and play the video through speakers. Live speech recognition and translation may use online services; microphone mode cannot hear audio sent only to headphones. The viewer also supports 16:9 and 9:16 aspect modes, an interactive transcript, theme/language preferences, and a hidden Creator Studio.
 
 ## Autonomous Content Pipeline
 

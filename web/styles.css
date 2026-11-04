@@ -377,6 +377,65 @@ video::cue(i) {
   color: #e2e8f0;
 }
 
+.live-caption-overlay {
+  position: absolute;
+  z-index: 3;
+  left: 6%;
+  right: 6%;
+  bottom: 14%;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.4rem;
+  background: rgba(2, 6, 23, 0.88);
+  color: #fff;
+  text-align: center;
+  font-size: clamp(1rem, 2.6vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: pre-line;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+.live-caption-overlay[hidden] { display: none !important; }
+
+.live-caption-panel {
+  padding: 1rem 1.2rem;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+.live-caption-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.85rem;
+}
+.live-caption-heading-row h2 { margin: 0; font-size: 1rem; }
+.live-caption-heading-row p,
+.live-caption-privacy {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.live-caption-status { color: var(--text-muted); font-size: 0.82rem; font-weight: 700; }
+.live-caption-status.is-listening { color: var(--accent); }
+.live-caption-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.65rem;
+}
+.live-caption-controls label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.live-caption-controls .language-picker { min-width: 8.5rem; }
+.live-caption-privacy { margin-top: 0.65rem; max-width: 75rem; }
+
 /* Prominent Viewer Subtitle & Aspect Control Bar */
 .viewer-caption-bar {
   display: flex;

@@ -15,6 +15,7 @@ const {
   ClientTranslator,
   translateSubtitlePayload,
   translateSubtitleToLanguage,
+  translateLiveTranscript,
   visibleCharLength
 } = require("../web/app.js");
 const { normalizeLang, detectSourceLang } = require("../scripts/headless-translator.js");
@@ -321,6 +322,10 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /id="creator-studio-backdrop"[^>]*\bhidden\b/);
   assert.match(html, /id="btn-aspect-9-16"/);
   assert.match(html, /id="catalog-language-select"/);
+  assert.match(html, /id="live-source-language"/);
+  assert.match(html, /id="live-target-language"/);
+  assert.match(html, /id="btn-live-captions"/);
+  assert.match(html, /id="live-caption-overlay"/);
 });
 
 test("Generic language translator creates timestamp-preserving tracks for any supported locale", async () => {
@@ -343,6 +348,23 @@ test("Generic language translator creates timestamp-preserving tracks for any su
   assert.ok(result.vtt.includes("00:00:01.200 --> 00:00:03.500"));
   assert.ok(result.vtt.includes("<i>こんにちは Hello, world.</i>"));
   assert.deepEqual(SubtitleParser.validateWebVTT(result.vtt, result.doc, 42), []);
+});
+
+test("Live speech transcripts translate from Japanese into a selected subtitle language", async () => {
+  const translator = {
+    lastUsedProvider: "test-mock",
+    async translateSegment(text, source, target, context) {
+      assert.equal(text, "こんにちは、世界！");
+      assert.equal(source, "ja");
+      assert.equal(target, "pl");
+      assert.equal(context.activeRegister, "default");
+      return "Cześć, świecie!";
+    }
+  };
+  const result = await translateLiveTranscript("こんにちは、世界！", "ja", "pl", translator);
+  assert.equal(result.text, "Cześć, świecie!");
+  assert.equal(result.providerUsed, "test-mock");
+  await assert.rejects(translateLiveTranscript("hello", "xx", "pl", translator), /Unsupported live caption/);
 });
 
 test("Offline demo memory provides real Japanese, Chinese, and German translations", async () => {
