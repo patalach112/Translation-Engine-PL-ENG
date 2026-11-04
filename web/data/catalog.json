@@ -22,7 +22,10 @@
         "es": "data/tracks/interview_es.vtt",
         "ja": "data/tracks/interview_ja.vtt"
       },
-      "updatedAt": "2026-11-04T16:23:56.113Z"
+      "updatedAt": "2026-11-04T16:25:22.766Z",
+      "sourceHash": "74140323425a370fbe0932e06672bc0ee2acff2da5b8cb9f6720a055c21cb4c4",
+      "trackBuildVersion": "1",
+      "translationMode": "offline"
     },
     {
       "id": "keynote",
@@ -45,7 +48,10 @@
         "es": "data/tracks/keynote_es.vtt",
         "ja": "data/tracks/keynote_ja.vtt"
       },
-      "updatedAt": "2026-11-04T16:23:56.129Z"
+      "updatedAt": "2026-11-04T16:25:22.790Z",
+      "sourceHash": "06e1ecf73d6d2a2774000938228b647f08a6ea9ac1c1aadae07b2d6a8933ce15",
+      "trackBuildVersion": "1",
+      "translationMode": "offline"
     },
     {
       "id": "vertical-short",
@@ -68,8 +74,11 @@
         "es": "data/tracks/vertical-short_es.vtt",
         "ja": "data/tracks/vertical-short_ja.vtt"
       },
-      "updatedAt": "2026-11-04T16:23:56.132Z"
+      "updatedAt": "2026-11-04T16:25:22.796Z",
+      "sourceHash": "27ad8d4366aa23a60c15560867f93f442ddcf9ac27790cc6ecf1cbb3b7b8ec99",
+      "trackBuildVersion": "1",
+      "translationMode": "offline"
     }
   ],
-  "generatedAt": "2026-11-04T16:23:56.132Z"
+  "generatedAt": "2026-11-04T16:25:22.796Z"
 }

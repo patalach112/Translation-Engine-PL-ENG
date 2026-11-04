@@ -10,6 +10,7 @@
  */
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const {
   SubtitleParser,
   TokenShield,
@@ -23,6 +24,7 @@ const ROOT = path.resolve(__dirname, "..");
 const LANGUAGES = ["en", "pl", "es", "ja"];
 const SUBTITLE_EXTENSIONS = new Set([".srt", ".vtt", ".ass", ".ssa"]);
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm"]);
+const BUILD_VERSION = "1";
 
 function parseArgs(argv) {
   const options = { input: "assets/raw", output: "web/data/tracks", catalog: "web/data/catalog.json", offline: false };
@@ -84,6 +86,14 @@ function titlePair(value, fallback) {
   if (value && typeof value === "object") return { en: value.en || fallback, pl: value.pl || value.en || fallback };
   const title = String(value || fallback);
   return { en: title, pl: title };
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function relativeStem(file, root) {
@@ -195,6 +205,7 @@ async function run(options) {
   const subtitleStems = new Set();
   const offlineTranslator = new ClientTranslator({ provider: "offline" });
   const failedPairs = new Set();
+  let catalogChanged = false;
 
   for (const subtitleFile of subtitleFiles) {
     const raw = await fs.readFile(subtitleFile, "utf8");
@@ -209,20 +220,39 @@ async function run(options) {
     const metadata = await readSidecar(subtitleFile);
     const id = slugify(metadata.id || stem);
     const sourceLang = normalizeLang(metadata.sourceLanguage || SubtitleParser.detectLanguage(doc));
-    const outputTracks = {};
-    for (const target of LANGUAGES) {
-      const targetFile = path.join(outputDir, `${id}_${target}.vtt`);
-      const vtt = await createTrack(doc, sourceLang, target, offlineTranslator, options.offline, failedPairs);
-      await fs.writeFile(targetFile, vtt, "utf8");
-      outputTracks[target] = relativeWebPath(targetFile, webRoot);
-    }
-
     const video = videosByStem.get(stem.toLowerCase());
     const existing = byId.get(id) || {};
     const videoMetadata = video ? await readSidecar(video) : {};
     const metadataMerged = { ...videoMetadata, ...metadata };
+    const expectedTracks = Object.fromEntries(LANGUAGES.map(target => [
+      target,
+      relativeWebPath(path.join(outputDir, `${id}_${target}.vtt`), webRoot)
+    ]));
+    const sourceHash = crypto.createHash("sha256").update(raw).digest("hex");
+    const translationMode = options.offline ? "offline" : "public-auto";
+    const reusable = existing.sourceHash === sourceHash &&
+      existing.sourceLanguage === sourceLang &&
+      existing.trackBuildVersion === BUILD_VERSION &&
+      existing.translationMode === translationMode &&
+      LANGUAGES.every(target => existing.tracks?.[target] === expectedTracks[target]);
+    let tracksExist = reusable;
+    if (tracksExist) {
+      for (const target of LANGUAGES) {
+        try { await fs.access(path.resolve(webRoot, expectedTracks[target])); }
+        catch (_error) { tracksExist = false; break; }
+      }
+    }
+
+    if (!tracksExist) {
+      for (const target of LANGUAGES) {
+        const targetFile = path.join(outputDir, `${id}_${target}.vtt`);
+        const vtt = await createTrack(doc, sourceLang, target, offlineTranslator, options.offline, failedPairs);
+        await fs.writeFile(targetFile, vtt, "utf8");
+      }
+    }
+
     const fallbackTitle = path.basename(stem);
-    const item = {
+    const candidate = {
       ...existing,
       ...metadataMerged,
       id,
@@ -233,11 +263,16 @@ async function run(options) {
       video: video ? relativeWebPath(video, webRoot) : (existing.video || ""),
       sourceSubtitle: relativeWebPath(subtitleFile, webRoot),
       sourceLanguage: sourceLang,
-      tracks: outputTracks,
-      updatedAt: new Date().toISOString()
+      sourceHash,
+      trackBuildVersion: BUILD_VERSION,
+      translationMode,
+      tracks: expectedTracks
     };
+    const changed = stableStringify({ ...existing, updatedAt: null }) !== stableStringify({ ...candidate, updatedAt: null });
+    const item = { ...candidate, updatedAt: changed ? new Date().toISOString() : (existing.updatedAt || null) };
+    if (changed) catalogChanged = true;
     byId.set(id, item);
-    console.log(`Generated ${LANGUAGES.map(lang => `${id}_${lang}.vtt`).join(", ")} (${doc.cues.length} cues, ${sourceLang} source)`);
+    console.log(`${tracksExist ? "Reused" : "Generated"} ${LANGUAGES.map(lang => `${id}_${lang}.vtt`).join(", ")} (${doc.cues.length} cues, ${sourceLang} source)`);
   }
 
   // Video-only commits become visible in the catalog immediately; subtitle tracks
@@ -248,7 +283,7 @@ async function run(options) {
     const metadata = await readSidecar(video);
     const id = slugify(metadata.id || stem);
     const existing = byId.get(id) || {};
-    byId.set(id, {
+    const candidate = {
       ...existing,
       ...metadata,
       id,
@@ -259,13 +294,15 @@ async function run(options) {
       video: relativeWebPath(video, webRoot),
       sourceSubtitle: existing.sourceSubtitle || "",
       sourceLanguage: existing.sourceLanguage || "",
-      tracks: existing.tracks || {},
-      updatedAt: new Date().toISOString()
-    });
+      tracks: existing.tracks || {}
+    };
+    const changed = stableStringify({ ...existing, updatedAt: null }) !== stableStringify({ ...candidate, updatedAt: null });
+    if (changed) catalogChanged = true;
+    byId.set(id, { ...candidate, updatedAt: changed ? new Date().toISOString() : (existing.updatedAt || null) });
   }
 
   catalog.schemaVersion = 1;
-  catalog.generatedAt = new Date().toISOString();
+  if (catalogChanged || !catalog.generatedAt) catalog.generatedAt = new Date().toISOString();
   catalog.items = Array.from(byId.values()).sort((a, b) => a.id.localeCompare(b.id));
   await fs.mkdir(path.dirname(catalogPath), { recursive: true });
   await fs.writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
