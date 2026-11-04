@@ -19,6 +19,26 @@ const {
   visibleCharLength
 } = require("../web/app.js");
 const { normalizeLang, detectSourceLang } = require("../scripts/headless-translator.js");
+const { LiveCaptionEngine } = require("../web/live-caption-engine.js");
+
+class FakeSpeechRecognition {
+  constructor({ rejectAudioTrack = false } = {}) {
+    this.rejectAudioTrack = rejectAudioTrack;
+    this.startCalls = [];
+    this.stopCalls = 0;
+  }
+  start(track) {
+    this.startCalls.push(track || null);
+    if (track && this.rejectAudioTrack) throw new Error("Audio-track input is unsupported");
+  }
+  stop() { this.stopCalls += 1; }
+  emit(text, isFinal = true) {
+    this.onresult?.({
+      resultIndex: 0,
+      results: [{ 0: { transcript: text }, isFinal }]
+    });
+  }
+}
 
 function createMockStorage() {
   const map = new Map();
@@ -327,6 +347,7 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /id="btn-live-captions"/);
   assert.match(html, /id="live-caption-overlay"/);
   assert.match(html, /id="live-caption-heard"/);
+  assert.match(html, /live-caption-engine\.js" defer/);
 });
 
 test("Generic language translator creates timestamp-preserving tracks for any supported locale", async () => {
@@ -366,6 +387,69 @@ test("Live speech transcripts translate from Japanese into a selected subtitle l
   assert.equal(result.text, "Cześć, świecie!");
   assert.equal(result.providerUsed, "test-mock");
   await assert.rejects(translateLiveTranscript("hello", "xx", "pl", translator), /Unsupported live caption/);
+});
+
+test("Live caption engine serializes speech, falls back from tab capture, and cancels stale work", async () => {
+  let recognition;
+  const captions = [];
+  const statuses = [];
+  let resolveTranslation;
+  const track = {
+    stop() {},
+    addEventListener() {}
+  };
+  const stream = {
+    getAudioTracks: () => [track],
+    getTracks: () => [track]
+  };
+  const engine = new LiveCaptionEngine({
+    recognitionFactory: () => (recognition = new FakeSpeechRecognition({ rejectAudioTrack: true })),
+    mediaDevices: { async getDisplayMedia() { return stream; } },
+    translate: (segment) => new Promise((resolve) => {
+      assert.equal(segment.sourceLang, "ja");
+      assert.equal(segment.targetLang, "pl");
+      resolveTranslation = resolve;
+    }),
+    onCaption: (caption) => captions.push(caption),
+    onStatus: (status) => statuses.push(status)
+  });
+
+  assert.equal(await engine.start({ sourceLang: "ja", targetLang: "pl", audioSource: "tab" }), true);
+  assert.equal(recognition.lang, "ja-JP");
+  assert.equal(recognition.startCalls.length, 2);
+  assert.equal(recognition.startCalls[0], track);
+  assert.equal(recognition.startCalls[1], null, "unsupported tab-track input should fall back to microphone");
+  assert.equal(engine.fellBackToMicrophone, true);
+
+  recognition.emit("こんにちは", true);
+  await new Promise((resolve) => setImmediate(resolve));
+  engine.stop();
+  resolveTranslation({ text: "Cześć", providerUsed: "mock" });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(captions.length, 0, "late translation from a stopped session must be discarded");
+  assert.equal(engine.state, "idle");
+  assert.ok(statuses.some((status) => status.input === "microphone-fallback"));
+});
+
+test("Live caption engine reports interim speech and emits ordered final translations", async () => {
+  let recognition;
+  const captions = [];
+  const interim = [];
+  const engine = new LiveCaptionEngine({
+    recognitionFactory: () => (recognition = new FakeSpeechRecognition()),
+    mediaDevices: {},
+    translate: async (segment) => ({ text: `PL:${segment.text}`, providerUsed: "mock" }),
+    onCaption: (caption) => captions.push(caption),
+    onInterim: (event) => interim.push(event)
+  });
+  await engine.start({ sourceLang: "ja", targetLang: "pl", audioSource: "microphone" });
+  recognition.emit("こ", false);
+  recognition.emit("こんにちは", true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(interim.some((event) => !event.final && event.text === "こ"));
+  assert.equal(captions.length, 1);
+  assert.equal(captions[0].text, "PL:こんにちは");
+  engine.stop();
 });
 
 test("Offline demo memory provides real Japanese, Chinese, and German translations", async () => {

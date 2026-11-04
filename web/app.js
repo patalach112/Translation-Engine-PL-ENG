@@ -206,6 +206,7 @@
       liveCaptionHeading: "Live audio captions",
       liveCaptionDescription: "Transcribe speech and translate it into subtitles while this video plays.",
       liveCaptionIdle: "Not listening",
+      liveCaptionStarting: "Starting audio capture…",
       liveCaptionListening: "Listening and translating…",
       liveCaptionNoSpeech: "No speech heard yet — check the audio source and volume.",
       liveCaptionUsingMicFallback: "Tab audio recognition unavailable; listening through microphone.",
@@ -290,6 +291,7 @@
       liveCaptionHeading: "Napisy na żywo z dźwięku",
       liveCaptionDescription: "Rozpoznawaj mowę i tłumacz ją na napisy podczas odtwarzania filmu.",
       liveCaptionIdle: "Nie nasłuchuje",
+      liveCaptionStarting: "Uruchamianie przechwytywania dźwięku…",
       liveCaptionListening: "Nasłuchiwanie i tłumaczenie…",
       liveCaptionNoSpeech: "Nie słychać mowy — sprawdź źródło i głośność dźwięku.",
       liveCaptionUsingMicFallback: "Rozpoznawanie dźwięku karty niedostępne; nasłuchiwanie przez mikrofon.",
@@ -2538,19 +2540,14 @@
     let currentTrackUrls = { en: null, pl: null, video: null };
     let canvasAnimId = null;
     let suppressNativeTrackEvent = false;
-    let liveRecognition = null;
-    let liveAudioStream = null;
-    let liveAudioTrack = null;
     let liveActive = false;
     let liveStarting = false;
-    let liveSessionToken = 0;
     let livePreviousTrack = "off";
-    let liveTranslationQueue = Promise.resolve();
     let liveTranslator = null;
     let liveCaptionHideTimer = null;
     let liveFallbackToastShown = false;
-    let liveUsingMicFallback = false;
     let liveStatusKey = "liveCaptionIdle";
+    let liveEngine = null;
 
     /* ----------------------------------------------------------------------
      * Toast Notification System
@@ -2822,15 +2819,6 @@
       if (lang !== "off") renderInteractiveTranscript(lang);
     }
 
-    const SPEECH_RECOGNITION_LOCALES = {
-      en: "en-US", pl: "pl-PL", es: "es-ES", ja: "ja-JP", "zh-CN": "zh-CN",
-      de: "de-DE", fr: "fr-FR", ar: "ar-SA", hi: "hi-IN", pt: "pt-BR",
-      ru: "ru-RU", bn: "bn-BD", id: "id-ID", ur: "ur-PK", tr: "tr-TR",
-      it: "it-IT", ko: "ko-KR", vi: "vi-VN", fa: "fa-IR", sw: "sw-KE",
-      nl: "nl-NL", th: "th-TH", ms: "ms-MY", uk: "uk-UA", ta: "ta-IN",
-      mr: "mr-IN", pa: "pa-IN", tl: "fil-PH"
-    };
-
     function populateLiveLanguageSelectors() {
       if (liveSourceLanguageSelect) {
         liveSourceLanguageSelect.replaceChildren();
@@ -2881,247 +2869,125 @@
       }, duration);
     }
 
-    function stopLiveCaptions({ restoreTrack = true, statusKey = "liveCaptionIdle" } = {}) {
+    function restorePreviousSubtitleTrack() {
+      const previousTrack = livePreviousTrack;
+      livePreviousTrack = "off";
+      if (previousTrack !== "off") selectCatalogTrack(previousTrack);
+      else activateSubtitleTrack("off", { persistPreference: false });
+    }
+
+    function showLiveEngineError(details = {}) {
+      const code = details.code || "unknown";
+      const errorKeys = {
+        "recognition-unavailable": "liveCaptionUnsupported",
+        "audio-capture-failed": "liveCaptionAudioError",
+        "audio-capture": "liveCaptionAudioError",
+        "language-not-supported": "liveCaptionLanguageError",
+        network: "liveCaptionNetworkError",
+        "translation-failed": "liveCaptionTranslationFailed",
+        "translation-queue-full": "liveCaptionTranslationFailed"
+      };
+      const title = code.startsWith("translation")
+        ? (uiLang === "pl" ? "Błąd tłumaczenia na żywo" : "Live translation error")
+        : (uiLang === "pl" ? "Błąd rozpoznawania mowy" : "Speech recognition error");
+      const translatedMessage = errorKeys[code]
+        ? LocalizationManager.t(uiLang, errorKeys[code])
+        : (details.error && details.error.message) || LocalizationManager.t(uiLang, "liveCaptionUnsupported");
+      showToast({ title, message: translatedMessage, variant: "warning", durationMs: 7500 });
+    }
+
+    function createLiveCaptionEngine() {
+      const engineApi = typeof globalThis !== "undefined" ? globalThis.LiveCaptionEngine : null;
+      if (!engineApi || !engineApi.LiveCaptionEngine) return null;
+      return new engineApi.LiveCaptionEngine({
+        mediaDevices: navigator.mediaDevices,
+        translate: async (segment) => translateLiveTranscript(
+          segment.text, segment.sourceLang, segment.targetLang, liveTranslator
+        ),
+        onStatus(event) {
+          liveActive = ["starting", "listening", "no-speech"].includes(event.state);
+          liveStarting = event.state === "starting";
+          const busy = liveActive;
+          [liveSourceLanguageSelect, liveTargetLanguageSelect, liveAudioSourceSelect].forEach((select) => {
+            if (select) select.disabled = busy;
+          });
+          if (btnLiveCaptions) {
+            btnLiveCaptions.disabled = liveStarting;
+            btnLiveCaptions.textContent = LocalizationManager.t(uiLang, busy ? "btnStopListening" : "btnStartListening");
+          }
+          if (event.state === "starting") setLiveCaptionStatus("liveCaptionStarting", true);
+          else if (event.state === "no-speech") setLiveCaptionStatus("liveCaptionNoSpeech", true);
+          else if (event.state === "listening") {
+            setLiveCaptionStatus(event.input === "microphone-fallback" ? "liveCaptionUsingMicFallback" : "liveCaptionListening", true);
+          } else setLiveCaptionStatus("liveCaptionIdle", false);
+          if (event.state === "error") {
+            if (liveCaptionOverlay) liveCaptionOverlay.hidden = true;
+            if (liveCaptionHeard) liveCaptionHeard.hidden = true;
+            if (liveCaptionTranscript) liveCaptionTranscript.textContent = "";
+            restorePreviousSubtitleTrack();
+          }
+        },
+        onInterim(event) {
+          if (!liveCaptionTranscript || !liveCaptionHeard) return;
+          liveCaptionTranscript.textContent = event.text || "";
+          liveCaptionHeard.hidden = !event.text;
+        },
+        onCaption(caption) {
+          displayLiveCaption(caption.text);
+          if (caption.sourceLang !== caption.targetLang && caption.providerUsed === "offline-smart-dictionary" && !liveFallbackToastShown) {
+            liveFallbackToastShown = true;
+            showLiveEngineError({ code: "translation-failed" });
+          }
+        },
+        onError: showLiveEngineError,
+        onWarning(event) {
+          if (event.code === "microphone-fallback") setLiveCaptionStatus("liveCaptionUsingMicFallback", true);
+        }
+      });
+    }
+
+    function stopLiveCaptions({ restoreTrack = true } = {}) {
+      if (liveEngine) liveEngine.stop();
       liveActive = false;
       liveStarting = false;
-      liveSessionToken += 1;
-      const recognition = liveRecognition;
-      liveRecognition = null;
-      if (recognition) {
-        recognition.onresult = null;
-        recognition.onend = null;
-        try { recognition.stop(); } catch (_error) { /* already stopped */ }
-      }
-      if (liveAudioStream) {
-        liveAudioStream.getTracks().forEach((track) => track.stop());
-      }
-      liveAudioStream = null;
-      liveAudioTrack = null;
       liveTranslator = null;
-      liveUsingMicFallback = false;
-      if (btnLiveCaptions) {
-        btnLiveCaptions.disabled = false;
-        btnLiveCaptions.textContent = LocalizationManager.t(uiLang, "btnStartListening");
-      }
-      [liveSourceLanguageSelect, liveTargetLanguageSelect, liveAudioSourceSelect].forEach((select) => {
-        if (select) select.disabled = false;
-      });
+      liveFallbackToastShown = false;
       if (liveCaptionOverlay) liveCaptionOverlay.hidden = true;
       if (liveCaptionHeard) liveCaptionHeard.hidden = true;
       if (liveCaptionTranscript) liveCaptionTranscript.textContent = "";
       if (liveCaptionHideTimer) clearTimeout(liveCaptionHideTimer);
-      setLiveCaptionStatus(statusKey, false);
-      const previousTrack = livePreviousTrack;
-      livePreviousTrack = "off";
-      if (restoreTrack && previousTrack !== "off") {
-        selectCatalogTrack(previousTrack);
-      } else {
+      if (restoreTrack) restorePreviousSubtitleTrack();
+      else {
+        livePreviousTrack = "off";
         activateSubtitleTrack("off", { persistPreference: false });
       }
     }
 
     async function startLiveCaptions() {
       if (liveActive || liveStarting) return;
-      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!Recognition) {
-        showToast({
-          title: uiLang === "pl" ? "Brak rozpoznawania mowy" : "Speech recognition unavailable",
-          message: LocalizationManager.t(uiLang, "liveCaptionUnsupported"),
-          variant: "warning",
-          durationMs: 7500
-        });
-        return;
-      }
       liveStarting = true;
       if (btnLiveCaptions) btnLiveCaptions.disabled = true;
-      let audioTrack = null;
-      try {
-        if (liveAudioSourceSelect && liveAudioSourceSelect.value === "tab") {
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-            liveUsingMicFallback = true;
-          } else {
-            try {
-              liveAudioStream = await navigator.mediaDevices.getDisplayMedia({
-                video: { frameRate: 1 }, audio: true
-              });
-              audioTrack = liveAudioStream.getAudioTracks()[0] || null;
-              if (!audioTrack) {
-                liveAudioStream.getTracks().forEach((track) => track.stop());
-                liveAudioStream = null;
-                liveUsingMicFallback = true;
-              }
-            } catch (captureError) {
-              console.warn("Shared-tab audio unavailable; falling back to microphone:", captureError);
-              if (liveAudioStream) liveAudioStream.getTracks().forEach((track) => track.stop());
-              liveAudioStream = null;
-              liveUsingMicFallback = true;
-            }
-          }
-        }
-
-        const recognition = new Recognition();
-        const sourceCode = liveSourceLanguageSelect?.value || "ja";
-        recognition.lang = SPEECH_RECOGNITION_LOCALES[sourceCode] || sourceCode;
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.maxAlternatives = 1;
-        liveSessionToken += 1;
-        const sessionToken = liveSessionToken;
-        livePreviousTrack = getShowingSubtitleLanguage();
-        if (livePreviousTrack !== "off") activateSubtitleTrack("off", { persistPreference: false });
-        liveRecognition = recognition;
-        liveAudioTrack = audioTrack;
-        liveTranslator = new ClientTranslator({ ...appSettings });
-        liveTranslator.resetCircuit();
-        liveTranslationQueue = Promise.resolve();
-        liveFallbackToastShown = false;
-        liveActive = true;
+      livePreviousTrack = getShowingSubtitleLanguage();
+      if (livePreviousTrack !== "off") activateSubtitleTrack("off", { persistPreference: false });
+      liveTranslator = new ClientTranslator({ ...appSettings });
+      liveTranslator.resetCircuit();
+      liveFallbackToastShown = false;
+      if (!liveEngine) liveEngine = createLiveCaptionEngine();
+      if (!liveEngine) {
         liveStarting = false;
-        [liveSourceLanguageSelect, liveTargetLanguageSelect, liveAudioSourceSelect].forEach((select) => {
-          if (select) select.disabled = true;
-        });
-        if (btnLiveCaptions) {
-          btnLiveCaptions.disabled = false;
-          btnLiveCaptions.textContent = LocalizationManager.t(uiLang, "btnStopListening");
-        }
-        setLiveCaptionStatus("liveCaptionListening", true);
-
-        recognition.onstart = () => {
-          if (liveStatusKey !== "liveCaptionNoSpeech") {
-            setLiveCaptionStatus(liveUsingMicFallback ? "liveCaptionUsingMicFallback" : "liveCaptionListening", true);
-          }
-        };
-        recognition.onresult = (event) => {
-          const interimParts = [];
-          for (let index = event.resultIndex; index < event.results.length; index += 1) {
-            const speechResult = event.results[index];
-            const transcript = speechResult[0]?.transcript?.trim();
-            if (!transcript) continue;
-            if (!speechResult.isFinal) {
-              interimParts.push(transcript);
-              continue;
-            }
-            if (liveCaptionTranscript) liveCaptionTranscript.textContent = transcript;
-            if (liveCaptionHeard) liveCaptionHeard.hidden = false;
-            setLiveCaptionStatus(liveUsingMicFallback ? "liveCaptionUsingMicFallback" : "liveCaptionListening", true);
-            const source = liveSourceLanguageSelect?.value || "ja";
-            const target = liveTargetLanguageSelect?.value || "pl";
-            liveTranslationQueue = liveTranslationQueue.then(async () => {
-              if (!liveActive || sessionToken !== liveSessionToken) return;
-              const result = await translateLiveTranscript(transcript, source, target, liveTranslator);
-              if (!liveActive || sessionToken !== liveSessionToken) return;
-              displayLiveCaption(result.text);
-              if (source !== target && result.providerUsed === "offline-smart-dictionary" && !liveFallbackToastShown) {
-                liveFallbackToastShown = true;
-                showToast({
-                  title: uiLang === "pl" ? "Tłumaczenie online niedostępne" : "Online translation unavailable",
-                  message: LocalizationManager.t(uiLang, "liveCaptionTranslationFailed"),
-                  variant: "warning",
-                  durationMs: 7000
-                });
-              }
-            }).catch((error) => {
-              if (!liveActive || sessionToken !== liveSessionToken) return;
-              console.error("Live caption translation failed:", error);
-              showToast({
-                title: uiLang === "pl" ? "Błąd napisów na żywo" : "Live caption error",
-                message: LocalizationManager.t(uiLang, "liveCaptionTranslationFailed"),
-                variant: "error"
-              });
-            });
-          }
-          if (interimParts.length && liveCaptionTranscript) {
-            liveCaptionTranscript.textContent = `${interimParts.join(" ")} …`;
-            if (liveCaptionHeard) liveCaptionHeard.hidden = false;
-          }
-        };
-        recognition.onerror = (event) => {
-          if (event.error === "aborted") return;
-          if (event.error === "no-speech") {
-            setLiveCaptionStatus("liveCaptionNoSpeech", true);
-            return;
-          }
-          if (event.error === "audio-capture" && liveAudioTrack) {
-            liveUsingMicFallback = true;
-            const failedStream = liveAudioStream;
-            liveAudioStream = null;
-            liveAudioTrack = null;
-            if (failedStream) failedStream.getTracks().forEach((track) => track.stop());
-            setLiveCaptionStatus("liveCaptionUsingMicFallback", true);
-            return;
-          }
-          const errorKey = event.error === "network" ? "liveCaptionNetworkError"
-            : event.error === "audio-capture" ? "liveCaptionAudioError"
-              : event.error === "language-not-supported" ? "liveCaptionLanguageError"
-                : "liveCaptionUnsupported";
-          const message = event.error === "not-allowed"
-            ? (uiLang === "pl" ? "Zezwól przeglądarce na dostęp do dźwięku. Jeśli to podgląd w ramce, otwórz aplikację w osobnej karcie." : "Allow audio access. If this is an embedded preview, open the app in its own tab.")
-            : LocalizationManager.t(uiLang, errorKey);
-          showToast({
-            title: uiLang === "pl" ? "Rozpoznawanie mowy zatrzymane" : "Speech recognition stopped",
-            message,
-            variant: "warning"
-          });
-          stopLiveCaptions({ statusKey: "liveCaptionIdle" });
-        };
-        recognition.onend = () => {
-          if (!liveActive || sessionToken !== liveSessionToken || liveRecognition !== recognition) return;
-          setTimeout(() => {
-            if (!liveActive || sessionToken !== liveSessionToken || liveRecognition !== recognition) return;
-            try {
-              if (liveAudioTrack) recognition.start(liveAudioTrack);
-              else recognition.start();
-            } catch (error) {
-              console.warn("Could not restart live speech recognition:", error);
-              stopLiveCaptions({ statusKey: "liveCaptionIdle" });
-            }
-          }, 350);
-        };
-        if (liveAudioStream) {
-          liveAudioStream.getTracks().forEach((track) => {
-            track.addEventListener("ended", () => {
-              if (liveActive && sessionToken === liveSessionToken && !liveUsingMicFallback) {
-                stopLiveCaptions({ statusKey: "liveCaptionIdle" });
-              }
-            }, { once: true });
-          });
-        }
-        if (audioTrack) {
-          try {
-            recognition.start(audioTrack);
-          } catch (tabStartError) {
-            console.warn("Speech recognition rejected shared-tab audio; falling back to microphone:", tabStartError);
-            if (liveAudioStream) liveAudioStream.getTracks().forEach((track) => track.stop());
-            liveAudioStream = null;
-            liveAudioTrack = null;
-            audioTrack = null;
-            liveUsingMicFallback = true;
-            setLiveCaptionStatus("liveCaptionUsingMicFallback", true);
-            recognition.start();
-          }
-        } else {
-          recognition.start();
-        }
-      } catch (error) {
-        console.error("Could not start live captions:", error);
-        liveStarting = false;
-        if (liveActive) stopLiveCaptions();
-        else {
-          if (liveAudioStream) liveAudioStream.getTracks().forEach((track) => track.stop());
-          liveAudioStream = null;
-          liveUsingMicFallback = false;
-          if (btnLiveCaptions) btnLiveCaptions.disabled = false;
-          setLiveCaptionStatus("liveCaptionIdle", false);
-          showToast({
-            title: uiLang === "pl" ? "Nie można uruchomić napisów na żywo" : "Could not start live captions",
-            message: audioTrack
-              ? LocalizationManager.t(uiLang, "liveCaptionTabUnsupported")
-              : (error.message || LocalizationManager.t(uiLang, "liveCaptionUnsupported")),
-            variant: "warning",
-            durationMs: 8000
-          });
-        }
+        if (btnLiveCaptions) btnLiveCaptions.disabled = false;
+        setLiveCaptionStatus("liveCaptionUnsupported", false);
+        showLiveEngineError({ code: "recognition-unavailable" });
+        restorePreviousSubtitleTrack();
+        return;
       }
+      const started = await liveEngine.start({
+        sourceLang: liveSourceLanguageSelect?.value || "ja",
+        targetLang: liveTargetLanguageSelect?.value || "pl",
+        audioSource: liveAudioSourceSelect?.value || "tab"
+      });
+      liveStarting = false;
+      if (!started && liveEngine.state !== "error") restorePreviousSubtitleTrack();
     }
 
     if (btnLiveCaptions) {
@@ -3134,7 +3000,7 @@
 
     trackSelectBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
-        if (liveActive) stopLiveCaptions({ restoreTrack: false });
+        if (liveActive || liveStarting) stopLiveCaptions({ restoreTrack: false });
         const lang = btn.dataset.trackSelect;
         if (lang === "off") {
           languageSelectionToken += 1;
@@ -3144,7 +3010,7 @@
     });
     if (catalogLanguageSelect) {
       catalogLanguageSelect.addEventListener("change", () => {
-        if (liveActive) stopLiveCaptions({ restoreTrack: false });
+        if (liveActive || liveStarting) stopLiveCaptions({ restoreTrack: false });
         if (catalogLanguageSelect.value) selectCatalogTrack(catalogLanguageSelect.value);
       });
     }
@@ -3624,7 +3490,7 @@
     }
 
     async function loadCatalogItem(videoId) {
-      if (liveActive) stopLiveCaptions({ restoreTrack: false });
+      if (liveActive || liveStarting) stopLiveCaptions({ restoreTrack: false });
       const item = VIDEO_CATALOG[videoId];
       if (!item) return;
       const requestToken = ++catalogLoadToken;
@@ -3805,7 +3671,7 @@
     // Local Video & Subtitle Drag-and-Drop / File Inputs
     function handleLocalVideoFile(file) {
       if (!file) return;
-      if (liveActive) stopLiveCaptions({ restoreTrack: false });
+      if (liveActive || liveStarting) stopLiveCaptions({ restoreTrack: false });
       activeCatalogId = null;
       currentCatalogRecord = null;
       sourceSubtitlePromise = null;
@@ -3879,7 +3745,7 @@
     btnLoadVideoUrl.addEventListener("click", () => {
       const url = videoUrlInput.value.trim();
       if (!url) return;
-      if (liveActive) stopLiveCaptions({ restoreTrack: false });
+      if (liveActive || liveStarting) stopLiveCaptions({ restoreTrack: false });
       activeCatalogId = null;
       currentCatalogRecord = null;
       sourceSubtitlePromise = null;

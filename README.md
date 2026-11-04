@@ -8,6 +8,10 @@ A **100% client-side Vanilla JavaScript (ES6+), HTML5, and CSS** video hub and s
 - For the complete dynamic playlist and CMS catalog, publish this repository with GitHub Pages or serve the repository root over HTTP. The root [`index.html`](./index.html) forwards to `web/` using relative paths (including under a project-site URL such as `https://user.github.io/repository/`).
 - Use the prominent **Polski (CC)** / **English (CC)** buttons or native video CC menu. To caption spoken Japanese (or another speech-recognition language) live, load/play the video in this player, use **Live audio captions**, select the spoken and subtitle languages, then start listening. Chrome/Edge support is recommended: share this tab with tab audio enabled for direct capture, or choose microphone mode and play the video through speakers. The live overlay appears on this player; browser security does not let this page draw captions over a different streaming site's player. Live speech recognition and translation may use online services; microphone mode cannot hear audio sent only to headphones. The viewer also supports 16:9 and 9:16 aspect modes, an interactive transcript, theme/language preferences, and a hidden Creator Studio.
 
+### Live speech-to-caption architecture
+
+The player uses the zero-dependency `web/live-caption-engine.js` module as its own orchestration layer: `AudioCaptureAdapter` handles tab-capture consent and microphone fallback, `LiveCaptionEngine` owns recognition state/restarts and session cancellation, and `SerialTranslationQueue` preserves speech order while discarding stale work after Stop. The UI and subtitle overlay are adapters around those events, so the recognition provider can be replaced without rewriting the player. The built-in provider is the browser's Web Speech Recognition API; this repository does **not** contain a trained Japanese acoustic model. That keeps the viewer backend-free and dependency-free, but browser support and the browser's recognition service still apply. Translation uses the configured client-side provider and may need internet access.
+
 ## Autonomous Content Pipeline
 
 ### Add media and captions
@@ -60,7 +64,8 @@ assets/raw/                        # Incoming video/subtitle content
 scripts/headless-translator.js     # Zero-dependency headless Node translation/build
 web/
   index.html                       # Public Video Hub and hidden Creator Studio
-  app.js                           # Shared browser/headless localization engine
+  app.js                           # Subtitle/localization engine and viewer UI
+  live-caption-engine.js           # Audio capture, recognition state machine, ordered translation queue
   styles.css                       # Responsive dark/light UI
   data/catalog.json                # CMS-ready dynamic media manifest
   data/tracks/                     # Generated multilingual WebVTT assets
