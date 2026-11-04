@@ -345,6 +345,22 @@ test("Generic language translator creates timestamp-preserving tracks for any su
   assert.deepEqual(SubtitleParser.validateWebVTT(result.vtt, result.doc, 42), []);
 });
 
+test("Offline demo memory provides real Japanese, Chinese, and German translations", async () => {
+  const raw = ["1", "00:00:01,200 --> 00:00:03,500", "Good evening, Dr. Anna Kowalska. Welcome to our live broadcast."].join("\n");
+  for (const [lang, expression] of [
+    ["ja", /アンナ・コワルスカ博士/],
+    ["zh-CN", /晚上好，安娜/],
+    ["de", /Guten Abend, Frau Dr\./]
+  ]) {
+    const result = await translateSubtitleToLanguage(raw, lang, {
+      filename: "demo.srt",
+      sourceLang: "en",
+      settings: { provider: "offline" }
+    });
+    assert.match(result.vtt, expression);
+  }
+});
+
 test("Global source-language detection and locale normalization cover major writing systems", () => {
   const doc = (text) => ({ cues: [{ text }] });
   assert.equal(normalizeLang("zh-TW"), "zh-CN");
@@ -404,6 +420,18 @@ test("Headless localization workflow and CMS catalog are zero-dependency and sta
       assert.ok(vtt.startsWith("WEBVTT\n\n"), `${item.id}/${language} missing WebVTT header`);
       assert.deepEqual(SubtitleParser.validateWebVTT(vtt, null, 42), []);
     }
+  }
+  const keynote = catalog.items.find((item) => item.id === "keynote");
+  assert.ok(keynote, "bundled keynote demo is required");
+  for (const [language, expression] of [
+    ["ja", /アンナ・コワルスカ博士/],
+    ["zh-CN", /晚上好，安娜/],
+    ["de", /Guten Abend/],
+    ["es", /Buenas (?:tardes|noches)/],
+    ["fr", /Bonsoir,/]
+  ]) {
+    const track = fs.readFileSync(path.resolve(root, "web", keynote.tracks[language]), "utf8");
+    assert.match(track, expression, `keynote/${language} must contain localized subtitle text`);
   }
   const workflow = fs.readFileSync(path.join(root, ".github/workflows/auto-translate-pipeline.yml"), "utf8");
   assert.match(workflow, /assets\/raw/);

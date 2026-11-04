@@ -25,7 +25,7 @@ const ROOT = path.resolve(__dirname, "..");
 const LANGUAGES = SUPPORTED_LANGUAGES.map(language => language.code);
 const SUBTITLE_EXTENSIONS = new Set([".srt", ".vtt", ".ass", ".ssa"]);
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm"]);
-const BUILD_VERSION = "3";
+const BUILD_VERSION = "4";
 
 function parseArgs(argv) {
   const options = { input: "assets/raw", output: "web/data/tracks", catalog: "web/data/catalog.json", offline: false };

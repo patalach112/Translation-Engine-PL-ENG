@@ -48,7 +48,7 @@
       },
       "updatedAt": "2026-11-04T17:38:58.476Z",
       "sourceHash": "74140323425a370fbe0932e06672bc0ee2acff2da5b8cb9f6720a055c21cb4c4",
-      "trackBuildVersion": "3",
+      "trackBuildVersion": "4",
       "translationMode": "public-auto"
     },
     {
@@ -98,7 +98,7 @@
       },
       "updatedAt": "2026-11-04T17:43:31.401Z",
       "sourceHash": "06e1ecf73d6d2a2774000938228b647f08a6ea9ac1c1aadae07b2d6a8933ce15",
-      "trackBuildVersion": "3",
+      "trackBuildVersion": "4",
       "translationMode": "public-auto"
     },
     {
@@ -148,7 +148,7 @@
       },
       "updatedAt": "2026-11-04T17:44:52.419Z",
       "sourceHash": "27ad8d4366aa23a60c15560867f93f442ddcf9ac27790cc6ecf1cbb3b7b8ec99",
-      "trackBuildVersion": "3",
+      "trackBuildVersion": "4",
       "translationMode": "public-auto"
     }
   ],

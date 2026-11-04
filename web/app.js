@@ -416,6 +416,141 @@
     }
   };
 
+  // Reliable no-network phrase memory for the bundled demo episodes. This keeps
+  // the visible Japanese, Simplified Chinese, German, Spanish, and French tracks
+  // genuinely translated even when browser-facing public APIs are unavailable.
+  const OFFLINE_MEMORY_MULTILINGUAL = {
+    en: {
+      de: {
+        "good evening, dr. anna kowalska. welcome to our live broadcast.": "Guten Abend, Frau Dr. Anna Kowalska. Willkommen zu unserer Liveübertragung.",
+        "thank you for having me in warsaw today.": "Vielen Dank, dass ich heute in Warschau sein darf.",
+        "could you explain how you built the new translation engine": "Könnten Sie erklären, wie Sie die neue Übersetzungs-Engine entwickelt haben",
+        "for real-time video streaming on our platform?": "für das Echtzeit-Video-Streaming auf unserer Plattform?",
+        "were you surprised when latency dropped by fifty percent?": "Waren Sie überrascht, als die Latenz um fünfzig Prozent sank?",
+        "honestly, due to the fact that our team optimized every model layer,": "Ehrlich gesagt: Unser Team hat jede Modellebene optimiert,",
+        "the results exceeded expectations.": "und die Ergebnisse haben unsere Erwartungen übertroffen.",
+        "hey everyone! thanks for watching this episode with us.": "Hallo zusammen! Danke, dass ihr diese Folge mit uns gesehen habt.",
+        "can you test these subtitles in your browser right now?": "Können Sie diese Untertitel jetzt in Ihrem Browser testen?",
+        "at this point in time a large number of viewers are able to switch tracks instantly.": "Inzwischen können viele Zuschauer sofort zwischen den Spuren wechseln.",
+        "visit ⟦t0⟧ or press ⟦t1⟧cc⟦t2⟧ to begin.": "Besuchen Sie ⟦T0⟧ oder drücken Sie ⟦T1⟧CC⟦T2⟧, um zu beginnen.",
+        "hey everyone! watching vertical shorts on your phone?": "Hallo zusammen! Seht ihr euch Hochkantvideos auf dem Handy an?",
+        "can you switch between polish and english subtitles in one tap?": "Könnt ihr mit einem Fingertipp zwischen polnischen und englischen Untertiteln wechseln?",
+        "every line stays under 42 characters so text never overflows!": "Jede Zeile bleibt unter 42 Zeichen, damit der Text nicht überläuft!",
+        "tap ⟦t0⟧polski (cc)⟦t1⟧ below the player to try it right now.": "Tippe unten im Player auf ⟦T0⟧Polski (CC)⟦T1⟧ und probiere es gleich aus."
+      },
+      ja: {
+        "good evening, dr. anna kowalska. welcome to our live broadcast.": "アンナ・コワルスカ博士、こんばんは。ライブ配信へようこそ。",
+        "thank you for having me in warsaw today.": "本日はワルシャワにお招きいただき、ありがとうございます。",
+        "could you explain how you built the new translation engine": "新しい翻訳エンジンをどのように開発したのか、説明していただけますか",
+        "for real-time video streaming on our platform?": "このプラットフォームでリアルタイム動画配信を実現するために？",
+        "were you surprised when latency dropped by fifty percent?": "遅延が50パーセント減ったとき、驚きましたか？",
+        "honestly, due to the fact that our team optimized every model layer,": "率直に言うと、チームがモデルのすべての層を最適化した結果、",
+        "the results exceeded expectations.": "期待を上回る成果が得られました。",
+        "hey everyone! thanks for watching this episode with us.": "皆さん、ご視聴ありがとうございます。一緒にこのエピソードを楽しんでいただけましたか。",
+        "can you test these subtitles in your browser right now?": "今すぐブラウザーでこの字幕を試せますか？",
+        "at this point in time a large number of viewers are able to switch tracks instantly.": "今では多くの視聴者が字幕トラックをすぐに切り替えられます。",
+        "visit ⟦t0⟧ or press ⟦t1⟧cc⟦t2⟧ to begin.": "⟦T0⟧にアクセスするか、⟦T1⟧CC⟦T2⟧を押して始めてください。",
+        "hey everyone! watching vertical shorts on your phone?": "皆さん、スマートフォンで縦型ショート動画を見ていますか？",
+        "can you switch between polish and english subtitles in one tap?": "ワンタップでポーランド語と英語の字幕を切り替えられますか？",
+        "every line stays under 42 characters so text never overflows!": "各行は42文字以内なので、字幕が画面からはみ出しません！",
+        "tap ⟦t0⟧polski (cc)⟦t1⟧ below the player to try it right now.": "プレーヤーの下にある⟦T0⟧Polski (CC)⟦T1⟧をタップして、今すぐ試してください。"
+      },
+      "zh-CN": {
+        "good evening, dr. anna kowalska. welcome to our live broadcast.": "晚上好，安娜·科瓦尔斯卡博士。欢迎收看我们的现场直播。",
+        "thank you for having me in warsaw today.": "感谢您今天邀请我来到华沙。",
+        "could you explain how you built the new translation engine": "您能介绍一下新翻译引擎是如何开发的吗",
+        "for real-time video streaming on our platform?": "它如何在我们的平台上实现实时视频流传输？",
+        "were you surprised when latency dropped by fifty percent?": "延迟降低百分之五十时，您感到惊讶吗？",
+        "honestly, due to the fact that our team optimized every model layer,": "说实话，由于团队优化了模型的每一层，",
+        "the results exceeded expectations.": "最终效果超出了预期。",
+        "hey everyone! thanks for watching this episode with us.": "大家好！感谢和我们一起收看本期节目。",
+        "can you test these subtitles in your browser right now?": "您现在可以在浏览器中测试这些字幕吗？",
+        "at this point in time a large number of viewers are able to switch tracks instantly.": "现在，许多观众都可以即时切换字幕轨道。",
+        "visit ⟦t0⟧ or press ⟦t1⟧cc⟦t2⟧ to begin.": "访问⟦T0⟧，或按⟦T1⟧CC⟦T2⟧开始。",
+        "hey everyone! watching vertical shorts on your phone?": "大家好！你正在手机上观看竖屏短视频吗？",
+        "can you switch between polish and english subtitles in one tap?": "只需轻点一下，就能切换波兰语和英语字幕吗？",
+        "every line stays under 42 characters so text never overflows!": "每行不超过42个字符，字幕不会溢出屏幕！",
+        "tap ⟦t0⟧polski (cc)⟦t1⟧ below the player to try it right now.": "点击播放器下方的⟦T0⟧Polski (CC)⟦T1⟧，立即体验。"
+      },
+      es: {
+        "good evening, dr. anna kowalska. welcome to our live broadcast.": "Buenas tardes, doctora Anna Kowalska. Le damos la bienvenida a nuestra transmisión en directo.",
+        "thank you for having me in warsaw today.": "Gracias por invitarme hoy a Varsovia.",
+        "could you explain how you built the new translation engine": "¿Podría explicar cómo desarrollaron el nuevo motor de traducción",
+        "for real-time video streaming on our platform?": "para transmitir vídeo en tiempo real en nuestra plataforma?",
+        "were you surprised when latency dropped by fifty percent?": "¿Le sorprendió que la latencia bajara un cincuenta por ciento?",
+        "honestly, due to the fact that our team optimized every model layer,": "Sinceramente, como nuestro equipo optimizó cada capa del modelo,",
+        "the results exceeded expectations.": "los resultados superaron las expectativas.",
+        "hey everyone! thanks for watching this episode with us.": "¡Hola a todos! Gracias por ver este episodio con nosotros.",
+        "can you test these subtitles in your browser right now?": "¿Puede probar estos subtítulos ahora mismo en su navegador?",
+        "at this point in time a large number of viewers are able to switch tracks instantly.": "Ahora muchos espectadores pueden cambiar de pista al instante.",
+        "visit ⟦t0⟧ or press ⟦t1⟧cc⟦t2⟧ to begin.": "Visite ⟦T0⟧ o pulse ⟦T1⟧CC⟦T2⟧ para empezar.",
+        "hey everyone! watching vertical shorts on your phone?": "¡Hola a todos! ¿Ven vídeos verticales cortos en el móvil?",
+        "can you switch between polish and english subtitles in one tap?": "¿Puedes cambiar entre subtítulos en polaco e inglés con un solo toque?",
+        "every line stays under 42 characters so text never overflows!": "¡Cada línea tiene menos de 42 caracteres para que el texto no se desborde!",
+        "tap ⟦t0⟧polski (cc)⟦t1⟧ below the player to try it right now.": "Pulsa ⟦T0⟧Polski (CC)⟦T1⟧ debajo del reproductor para probarlo ahora."
+      },
+      fr: {
+        "good evening, dr. anna kowalska. welcome to our live broadcast.": "Bonsoir, docteure Anna Kowalska. Bienvenue dans notre émission en direct.",
+        "thank you for having me in warsaw today.": "Merci de m'accueillir aujourd'hui à Varsovie.",
+        "could you explain how you built the new translation engine": "Pourriez-vous expliquer comment vous avez conçu le nouveau moteur de traduction",
+        "for real-time video streaming on our platform?": "pour la diffusion vidéo en temps réel sur notre plateforme ?",
+        "were you surprised when latency dropped by fifty percent?": "Avez-vous été surprise lorsque la latence a diminué de cinquante pour cent ?",
+        "honestly, due to the fact that our team optimized every model layer,": "Pour être honnête, comme notre équipe a optimisé chaque couche du modèle,",
+        "the results exceeded expectations.": "les résultats ont dépassé nos attentes.",
+        "hey everyone! thanks for watching this episode with us.": "Bonjour à toutes et à tous ! Merci d'avoir regardé cet épisode avec nous.",
+        "can you test these subtitles in your browser right now?": "Pouvez-vous tester ces sous-titres dans votre navigateur dès maintenant ?",
+        "at this point in time a large number of viewers are able to switch tracks instantly.": "Désormais, de nombreux spectateurs peuvent changer de piste instantanément.",
+        "visit ⟦t0⟧ or press ⟦t1⟧cc⟦t2⟧ to begin.": "Visitez ⟦T0⟧ ou appuyez sur ⟦T1⟧CC⟦T2⟧ pour commencer.",
+        "hey everyone! watching vertical shorts on your phone?": "Bonjour ! Vous regardez des vidéos courtes verticales sur votre téléphone ?",
+        "can you switch between polish and english subtitles in one tap?": "Peux-tu passer des sous-titres polonais aux sous-titres anglais en un geste ?",
+        "every line stays under 42 characters so text never overflows!": "Chaque ligne reste sous 42 caractères pour éviter tout débordement !",
+        "tap ⟦t0⟧polski (cc)⟦t1⟧ below the player to try it right now.": "Appuyez sur ⟦T0⟧Polski (CC)⟦T1⟧ sous le lecteur pour essayer tout de suite."
+      }
+    },
+    pl: {
+      de: {
+        "dzień dobry, panie marku. witamy w naszym studiu w warszawie.": "Guten Tag, Herr Marek. Willkommen in unserem Studio in Warschau.",
+        "czy może pan opowiedzieć, jak powstał ten projekt wideo?": "Könnten Sie erzählen, wie dieses Videoprojekt entstanden ist?",
+        "ze względu na to, że w chwili obecnej publikujemy filmy codziennie,": "Da wir derzeit täglich Videos veröffentlichen,",
+        "potrzebowaliśmy automatycznego systemu napisów dla widzów.": "brauchten wir ein automatisches Untertitelsystem für unsere Zuschauer.",
+        "cześć wszystkim! wybierzcie język napisów bezpośrednio w odtwarzaczu.": "Hallo zusammen! Wählt die Untertitelsprache direkt im Player.",
+        "dziękujemy za uwagę i do zobaczenia w kolejnym odcinku!": "Vielen Dank fürs Zuschauen. Bis zur nächsten Folge!"
+      },
+      ja: {
+        "dzień dobry, panie marku. witamy w naszym studiu w warszawie.": "マレクさん、こんにちは。ワルシャワのスタジオへようこそ。",
+        "czy może pan opowiedzieć, jak powstał ten projekt wideo?": "この動画プロジェクトがどのように始まったのか、教えていただけますか？",
+        "ze względu na to, że w chwili obecnej publikujemy filmy codziennie,": "現在、毎日動画を公開しているため、",
+        "potrzebowaliśmy automatycznego systemu napisów dla widzów.": "視聴者向けの自動字幕システムが必要でした。",
+        "cześć wszystkim! wybierzcie język napisów bezpośrednio w odtwarzaczu.": "皆さん、こんにちは！プレーヤーで字幕の言語を選んでください。",
+        "dziękujemy za uwagę i do zobaczenia w kolejnym odcinku!": "ご視聴ありがとうございました。また次回お会いしましょう！"
+      },
+      "zh-CN": {
+        "dzień dobry, panie marku. witamy w naszym studiu w warszawie.": "早上好，马雷克先生。欢迎来到我们在华沙的演播室。",
+        "czy może pan opowiedzieć, jak powstał ten projekt wideo?": "您能介绍一下这个视频项目是如何开始的吗？",
+        "ze względu na to, że w chwili obecnej publikujemy filmy codziennie,": "由于我们目前每天都会发布视频，",
+        "potrzebowaliśmy automatycznego systemu napisów dla widzów.": "我们需要一套面向观众的自动字幕系统。",
+        "cześć wszystkim! wybierzcie język napisów bezpośrednio w odtwarzaczu.": "大家好！请直接在播放器中选择字幕语言。",
+        "dziękujemy za uwagę i do zobaczenia w kolejnym odcinku!": "感谢收看，我们下期再见！"
+      },
+      es: {
+        "dzień dobry, panie marku. witamy w naszym studiu w warszawie.": "Buenos días, señor Marek. Le damos la bienvenida a nuestro estudio en Varsovia.",
+        "czy może pan opowiedzieć, jak powstał ten projekt wideo?": "¿Podría contarnos cómo empezó este proyecto de vídeo?",
+        "ze względu na to, że w chwili obecnej publikujemy filmy codziennie,": "Como actualmente publicamos vídeos todos los días,",
+        "potrzebowaliśmy automatycznego systemu napisów dla widzów.": "necesitábamos un sistema automático de subtítulos para nuestros espectadores.",
+        "cześć wszystkim! wybierzcie język napisów bezpośrednio w odtwarzaczu.": "¡Hola a todos! Elijan el idioma de los subtítulos directamente en el reproductor.",
+        "dziękujemy za uwagę i do zobaczenia w kolejnym odcinku!": "¡Gracias por acompañarnos y hasta el próximo episodio!"
+      },
+      fr: {
+        "dzień dobry, panie marku. witamy w naszym studiu w warszawie.": "Bonjour, monsieur Marek. Bienvenue dans notre studio à Varsovie.",
+        "czy może pan opowiedzieć, jak powstał ten projekt wideo?": "Pourriez-vous nous raconter comment ce projet vidéo a vu le jour ?",
+        "ze względu na to, że w chwili obecnej publikujemy filmy codziennie,": "Comme nous publions actuellement des vidéos tous les jours,",
+        "potrzebowaliśmy automatycznego systemu napisów dla widzów.": "nous avions besoin d'un système de sous-titrage automatique pour notre public.",
+        "cześć wszystkim! wybierzcie język napisów bezpośrednio w odtwarzaczu.": "Bonjour à tous ! Choisissez la langue des sous-titres directement dans le lecteur.",
+        "dziękujemy za uwagę i do zobaczenia w kolejnym odcinku!": "Merci de votre attention et à bientôt pour un prochain épisode !"
+      }
+    }
+  };
+
   const PHRASE_LEXICON_EN_PL = [
     ["good morning", "dzień dobry"],
     ["good evening", "dobry wieczór"],
@@ -1791,6 +1926,11 @@
       if (!text.trim() || sourceLang === targetLang) return text;
 
       const key = text.trim().replace(/\s+/g, " ").toLowerCase();
+      const multilingualEntry = OFFLINE_MEMORY_MULTILINGUAL[sourceLang]?.[targetLang]?.[key];
+      if (multilingualEntry) {
+        this.lastUsedProvider = "offline-multilingual-memory";
+        return multilingualEntry;
+      }
       const table =
         targetLang === "pl" ? OFFLINE_MEMORY_EN_TO_PL : OFFLINE_MEMORY_PL_TO_EN;
 
