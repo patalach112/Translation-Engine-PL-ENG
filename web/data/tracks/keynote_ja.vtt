@@ -2,51 +2,42 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+こんばんは、アンナ・コワルスカ博士。ライブブロードキャストへようこそ。
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>今日はワルシャワにお集まりいただきありがとうございます。</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+新しい翻訳エンジンをどのように構築したか説明していただけますか
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+私たちのプラットフォームでリアルタイムビデオストリーミングをしたいですか？
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+遅延が 50% 減少したことに驚きましたか?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- 正直に言うと、私たちのチームがすべてのモデル層を最適化したという事実により、
+- 結果は期待を上回りました。
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+やあ、みんな！このエピソードをご視聴いただきありがとうございました。
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+今すぐブラウザでこれらの字幕をテストできますか?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+現時点では、多くの視聴者が瞬時にトラックを切り替えることができます。
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+https://example.com/docs
+にアクセスするか、<b>CC</b> を押して開始してください。

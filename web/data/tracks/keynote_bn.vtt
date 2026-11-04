@@ -2,51 +2,51 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+শুভ সন্ধ্যা, ডাঃ আনা কোওয়ালস্কা।
+আমাদের লাইভ সম্প্রচারে স্বাগতম।
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>আজ ওয়ারশতে আমাকে থাকার
+জন্য আপনাকে ধন্যবাদ।</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+আপনি ব্যাখ্যা করতে পারেন কিভাবে
+আপনি নতুন অনুবাদ ইঞ্জিন তৈরি করেছেন
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+আমাদের প্ল্যাটফর্মে রিয়েল-টাইম
+ভিডিও স্ট্রিমিংয়ের জন্য?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+লেটেন্সি পঞ্চাশ শতাংশ কমে
+গেলে আপনি অবাক হয়েছিলেন?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- সত্যই, আমাদের দল প্রতিটি
+মডেল স্তর অপ্টিমাইজ করার কারণে,
+- ফলাফল প্রত্যাশা অতিক্রম করেছে.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+আরে সবাই! আমাদের সাথে এই
+পর্বটি দেখার জন্য ধন্যবাদ.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+আপনি এই মুহূর্তে আপনার ব্রাউজারে
+এই সাবটাইটেল পরীক্ষা করতে পারেন?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+এই সময়ে প্রচুর সংখ্যক দর্শক তাৎক্ষণিকভাবে
+ট্র্যাকগুলি পরিবর্তন করতে সক্ষম হয়৷
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+https://example.com/docs এ যান
+বা শুরু করতে <b>CC</b> টিপুন।

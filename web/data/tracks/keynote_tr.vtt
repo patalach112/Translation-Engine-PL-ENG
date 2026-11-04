@@ -2,51 +2,52 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+İyi akşamlar Dr. Anna Kowalska.
+Canlı yayınımıza hoş geldiniz.
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>Bugün beni Varşova'da
+ağırladığınız için teşekkür ederim.</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+Yeni çeviri motorunu nasıl
+oluşturduğunuzu açıklayabilir misiniz?
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+platformumuzda gerçek
+zamanlı video akışı için?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+Gecikmenin yüzde elli oranında
+azalmasına şaşırdınız mı?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- Dürüst olmak gerekirse ekibimizin her
+model katmanını optimize etmesi nedeniyle,
+- sonuçlar beklentileri aştı.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+Herkese merhaba! Bu bölümü bizimle
+izlediğiniz için teşekkür ederiz.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+Bu altyazıları hemen tarayıcınızda
+test edebilir misiniz?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+Bu noktada çok sayıda izleyici,
+parçaları anında değiştirebiliyor.
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+Başlamak için https://example.com/docs
+adresini ziyaret edin veya
+<b>CC</b> tuşuna basın.

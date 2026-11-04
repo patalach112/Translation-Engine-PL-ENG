@@ -2,51 +2,50 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+Добрий вечір, доктор Анна Ковальська.
+Ласкаво просимо до нашого прямого ефіру.
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>Дякую, що я сьогодні у Варшаві.</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+Не могли б ви пояснити, як ви
+створили нову систему перекладу
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+для потокового відео в реальному
+часі на нашій платформі?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+Чи були ви здивовані, коли затримка
+впала на п’ятдесят відсотків?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- Чесно кажучи, завдяки тому, що наша
+команда оптимізувала кожен шар моделі,
+- результати перевершили очікування.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+Привіт усім! Дякуємо за
+перегляд цього епізоду з нами.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+Чи можете ви зараз перевірити
+ці субтитри у своєму браузері?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+У цей момент часу велика кількість
+глядачів може миттєво перемикати треки.
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+Відвідайте https://example.com/docs
+або натисніть <b>CC</b>, щоб почати.

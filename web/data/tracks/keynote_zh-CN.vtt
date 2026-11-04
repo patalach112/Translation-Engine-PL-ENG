@@ -2,51 +2,41 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+晚上好，安娜·科瓦尔斯卡博士。欢迎来到我们的直播。
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>感谢您今天邀请我来到华沙。</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+您能解释一下您是如何构建新的翻译引擎的吗
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+在我们的平台上进行实时视频流传输？
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+当延迟下降百分之五十时，您是否感到惊讶？
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- 老实说，由于我们团队优化了每个模型层，
+- 结果超出了预期。
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+大家好！感谢您和我们一起观看这一集。
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+您现在可以在浏览器中测试这些字幕吗？
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+此时，大量观众可以立即切换曲目。
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+访问https://example.com/docs或按<b>CC</b>开始。

@@ -2,51 +2,53 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+மாலை வணக்கம், டாக்டர் அன்னா கோவல்ஸ்கா.
+எங்கள் நேரடி ஒளிபரப்பிற்கு வரவேற்கிறோம்.
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>இன்று என்னை வார்சாவில்
+வைத்திருந்ததற்கு நன்றி.</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+புதிய மொழிபெயர்ப்பு இயந்திரத்தை எவ்வாறு
+உருவாக்கினீர்கள் என்பதை விளக்க முடியுமா?
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+எங்கள் மேடையில் நிகழ்நேர
+வீடியோ ஸ்ட்ரீமிங்கிற்காகவா?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+தாமதம் ஐம்பது சதவிகிதம் குறைந்தபோது
+நீங்கள் ஆச்சரியப்பட்டீர்களா?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- நேர்மையாக, எங்கள் குழு ஒவ்வொரு மாதிரி
+அடுக்கையும் மேம்படுத்தியதன் காரணமாக,
+- முடிவுகள் எதிர்பார்ப்புகளை மீறியது.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+அனைவருக்கும் வணக்கம்! எங்களுடன் இந்த
+அத்தியாயத்தைப் பார்த்ததற்கு நன்றி.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+இந்த வசனங்களை உங்கள் உலாவியில்
+இப்போது சோதிக்க முடியுமா?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+இந்த நேரத்தில் அதிக எண்ணிக்கையிலான
+பார்வையாளர்கள் தடங்களை
+உடனடியாக மாற்ற முடியும்.
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+தொடங்குவதற்கு https://example.com/docsஐப்
+பார்வையிடவும் அல்லது
+<b>CC</b>ஐ அழுத்தவும்.

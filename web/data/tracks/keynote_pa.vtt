@@ -2,51 +2,51 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+ਸ਼ੁਭ ਸ਼ਾਮ, ਡਾ. ਅੰਨਾ ਕੋਵਾਲਸਕਾ। ਸਾਡੇ
+ਲਾਈਵ ਪ੍ਰਸਾਰਣ ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ।
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>ਅੱਜ ਮੈਨੂੰ ਵਾਰਸਾ ਵਿੱਚ
+ਰੱਖਣ ਲਈ ਤੁਹਾਡਾ ਧੰਨਵਾਦ।</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+ਕੀ ਤੁਸੀਂ ਦੱਸ ਸਕਦੇ ਹੋ ਕਿ ਤੁਸੀਂ
+ਨਵਾਂ ਅਨੁਵਾਦ ਇੰਜਣ ਕਿਵੇਂ ਬਣਾਇਆ ਹੈ
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+ਸਾਡੇ ਪਲੇਟਫਾਰਮ 'ਤੇ ਰੀਅਲ-ਟਾਈਮ
+ਵੀਡੀਓ ਸਟ੍ਰੀਮਿੰਗ ਲਈ?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+ਕੀ ਤੁਹਾਨੂੰ ਹੈਰਾਨੀ ਹੋਈ ਜਦੋਂ
+ਲੇਟੈਂਸੀ ਪੰਜਾਹ ਪ੍ਰਤੀਸ਼ਤ ਘਟ ਗਈ?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- ਇਮਾਨਦਾਰੀ ਨਾਲ, ਇਸ ਤੱਥ ਦੇ ਕਾਰਨ ਕਿ ਸਾਡੀ
+ਟੀਮ ਨੇ ਹਰ ਮਾਡਲ ਲੇਅਰ ਨੂੰ ਅਨੁਕੂਲ ਬਣਾਇਆ,
+- ਨਤੀਜੇ ਉਮੀਦਾਂ ਤੋਂ ਵੱਧ ਗਏ।
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+ਹੇ ਹਰ ਕੋਈ! ਸਾਡੇ ਨਾਲ ਇਹ
+ਐਪੀਸੋਡ ਦੇਖਣ ਲਈ ਧੰਨਵਾਦ।
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+ਕੀ ਤੁਸੀਂ ਹੁਣੇ ਆਪਣੇ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ
+ਇਹਨਾਂ ਉਪਸਿਰਲੇਖਾਂ ਦੀ ਜਾਂਚ ਕਰ ਸਕਦੇ ਹੋ?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+ਇਸ ਸਮੇਂ ਵਿੱਚ ਵੱਡੀ ਗਿਣਤੀ ਵਿੱਚ ਦਰਸ਼ਕ
+ਤੁਰੰਤ ਟਰੈਕਾਂ ਨੂੰ ਬਦਲਣ ਦੇ ਯੋਗ ਹੁੰਦੇ ਹਨ।
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+ਸ਼ੁਰੂ ਕਰਨ ਲਈ https://example.com/docs
+'ਤੇ ਜਾਓ ਜਾਂ <b>CC</b> ਦਬਾਓ।

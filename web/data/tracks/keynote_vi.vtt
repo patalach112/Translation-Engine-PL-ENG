@@ -2,51 +2,52 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+Chào buổi tối, Tiến sĩ Anna Kowalska.
+Chào mừng đến với chương trình
+phát sóng trực tiếp của chúng tôi.
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>Cảm ơn vì đã đón tôi
+đến Warsaw ngày hôm nay.</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+Bạn có thể giải thích cách bạn xây
+dựng công cụ dịch thuật mới không
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+để truyền phát video theo thời gian
+thực trên nền tảng của chúng tôi?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+Bạn có ngạc nhiên khi độ
+trễ giảm đi 50% không?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- Thành thật mà nói, do nhóm của chúng
+tôi đã tối ưu hóa mọi lớp mô hình,
+- kết quả vượt quá sự mong đợi.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+Này mọi người! Cảm ơn đã
+xem tập này với chúng tôi.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+Bạn có thể kiểm tra những phụ đề này trong
+trình duyệt của mình ngay bây giờ không?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+Tại thời điểm này, một lượng lớn người
+xem có thể chuyển bài hát ngay lập tức.
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+Truy cập https://example.com/docs
+hoặc nhấn <b>CC</b> để bắt đầu.

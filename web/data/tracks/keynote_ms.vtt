@@ -2,51 +2,52 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+Selamat malam, Dr. Anna Kowalska.
+Selamat datang ke siaran langsung kami.
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>Terima kasih kerana membawa
+saya ke Warsaw hari ini.</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+Bolehkah anda menerangkan cara anda
+membina enjin terjemahan baharu
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+untuk penstriman video masa
+nyata pada platform kami?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+Adakah anda terkejut apabila kependaman
+menurun sebanyak lima puluh peratus?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- Secara jujur, disebabkan
+oleh fakta bahawa pasukan kami
+mengoptimumkan setiap lapisan model,
+- hasilnya melebihi jangkaan.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+Hai semua! Terima kasih kerana
+menonton episod ini bersama kami.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+Bolehkah anda menguji sari kata ini
+dalam penyemak imbas anda sekarang?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+Pada ketika ini, sebilangan besar penonton
+dapat menukar lagu dengan serta-merta.
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+Lawati https://example.com/docs
+atau tekan <b>CC</b> untuk bermula.

@@ -2,51 +2,50 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+Habari za jioni, Dk. Anna Kowalska. Karibu
+kwa matangazo yetu ya moja kwa moja.
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>Asante kwa kuwa nami Warsaw leo.</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+Unaweza kueleza jinsi ulivyounda
+injini mpya ya kutafsiri
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+kwa utiririshaji wa video wa
+wakati halisi kwenye jukwaa letu?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+Ulishangaa wakati muda wa kusubiri
+ulipungua kwa asilimia hamsini?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- Kusema kweli, kutokana na ukweli kwamba
+timu yetu iliboresha kila safu ya mfano,
+- matokeo yalizidi matarajio.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+Jambo kila mtu! Asante kwa
+kutazama kipindi hiki pamoja nasi.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+Je, unaweza kujaribu manukuu haya
+kwenye kivinjari chako sasa hivi?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+Kwa wakati huu idadi kubwa ya watazamaji
+wanaweza kubadilisha nyimbo papo hapo.
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+Tembelea https://example.com/docs
+au ubonyeze <b>CC</b> ili kuanza.

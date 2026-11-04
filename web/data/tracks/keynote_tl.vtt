@@ -2,51 +2,55 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+Magandang gabi, Dr. Anna
+Kowalska. Maligayang pagdating
+sa aming live na broadcast.
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>Salamat sa pagdala sa
+akin sa Warsaw ngayon.</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+Maaari mo bang ipaliwanag kung paano
+mo binuo ang bagong translation engine
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+para sa real-time na video
+streaming sa aming platform?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+Nagulat ka ba nang bumaba ang
+latency ng limampung porsyento?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- Sa totoo lang, dahil sa
+katotohanang na-optimize ng aming
+team ang bawat layer ng modelo,
+- ang mga resulta ay
+lumampas sa inaasahan.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+Hoy lahat! Salamat sa panonood
+ng episode na ito kasama namin.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+Maaari mo bang subukan ang mga subtitle
+na ito sa iyong browser ngayon?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+Sa puntong ito, ang malaking
+bilang ng mga manonood ay
+makakapagpalit kaagad ng mga track.
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+Bisitahin ang https://example.com/docs o
+pindutin ang <b>CC</b> upang magsimula.

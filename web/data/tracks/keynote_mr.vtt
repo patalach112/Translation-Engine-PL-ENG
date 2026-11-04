@@ -2,51 +2,51 @@ WEBVTT
 
 1
 00:00:01.200 --> 00:00:04.800
-Good evening, Dr. Anna Kowalska.
-Welcome to our live broadcast.
+शुभ संध्याकाळ, डॉ. अण्णा कोवाल्स्का.
+आमच्या थेट प्रक्षेपणात आपले स्वागत आहे.
 
 2
 00:00:05.100 --> 00:00:08.900
-<i>Thank you for having
-me in Warsaw today.</i>
+<i>आज मला वॉर्सा मध्ये
+घेतल्याबद्दल धन्यवाद.</i>
 
 3
 00:00:09.300 --> 00:00:13.400
-Could you explain how you built
-the new translation engine
+तुम्ही नवीन भाषांतर इंजिन कसे तयार
+केले ते तुम्ही स्पष्ट करू शकता
 
 4
 00:00:13.600 --> 00:00:17.250
-for real-time video
-streaming on our platform?
+आमच्या प्लॅटफॉर्मवर रिअल-टाइम
+व्हिडिओ स्ट्रीमिंगसाठी?
 
 5
 00:00:17.600 --> 00:00:21.500
-Were you surprised when
-latency dropped by 50%?
+विलंब पन्नास टक्क्यांनी कमी झाला
+तेव्हा तुम्हाला आश्चर्य वाटले?
 
 6
 00:00:21.900 --> 00:00:26.400
-- Honestly, because our team
-optimized every model layer,
-- the results exceeded expectations.
+- प्रामाणिकपणे, आमच्या टीमने प्रत्येक
+मॉडेल लेयरला ऑप्टिमाइझ केल्यामुळे,
+- परिणाम अपेक्षा ओलांडले.
 
 7
 00:00:26.800 --> 00:00:30.500
-Hey everyone! Thanks for
-watching this episode with us.
+हे सर्वजण! आमच्यासोबत हा
+भाग पाहिल्याबद्दल धन्यवाद.
 
 8
 00:00:30.900 --> 00:00:34.900
-Can you test these subtitles
-in your browser right now?
+तुम्ही आत्ता तुमच्या ब्राउझरमध्ये
+या उपशीर्षकांची चाचणी घेऊ शकता?
 
 9
 00:00:35.300 --> 00:00:39.800
-Now many viewers can
-switch tracks instantly.
+यावेळी मोठ्या संख्येने
+प्रेक्षक ट्रॅक स्विच करू शकतात.
 
 10
 00:00:40.200 --> 00:00:43.900
-Visit https://example.com/docs
-or press <b>CC</b> to begin.
+सुरू करण्यासाठी https://example.com/docs
+ला भेट द्या किंवा <b>CC</b> दाबा.
