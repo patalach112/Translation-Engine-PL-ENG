@@ -420,6 +420,17 @@ video::cue(i) {
 }
 .live-caption-status { color: var(--text-muted); font-size: 0.82rem; font-weight: 700; }
 .live-caption-status.is-listening { color: var(--accent); }
+.live-caption-heard {
+  margin: 0.7rem 0 0;
+  padding: 0.5rem 0.65rem;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elevated, rgba(127, 127, 127, 0.08));
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.live-caption-heard[hidden] { display: none !important; }
 .live-caption-controls {
   display: flex;
   flex-wrap: wrap;

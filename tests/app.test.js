@@ -326,6 +326,7 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /id="live-target-language"/);
   assert.match(html, /id="btn-live-captions"/);
   assert.match(html, /id="live-caption-overlay"/);
+  assert.match(html, /id="live-caption-heard"/);
 });
 
 test("Generic language translator creates timestamp-preserving tracks for any supported locale", async () => {

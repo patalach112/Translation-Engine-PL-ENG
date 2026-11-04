@@ -207,6 +207,9 @@
       liveCaptionDescription: "Transcribe speech and translate it into subtitles while this video plays.",
       liveCaptionIdle: "Not listening",
       liveCaptionListening: "Listening and translating…",
+      liveCaptionNoSpeech: "No speech heard yet — check the audio source and volume.",
+      liveCaptionUsingMicFallback: "Tab audio recognition unavailable; listening through microphone.",
+      recognizedSpeechLabel: "Heard:",
       liveCaptionStopping: "Stopping…",
       spokenLanguageLabel: "Spoken language",
       captionLanguageLabel: "Subtitle language",
@@ -217,6 +220,9 @@
       btnStopListening: "Stop live captions",
       liveCaptionPrivacy: "For subtitles over the anime, play its video in this player and share this tab with audio enabled. Microphone mode hears nearby speakers. Browser speech recognition and the selected translation provider may process audio or transcript data online.",
       liveCaptionUnsupported: "Live speech recognition is not available in this browser. Try a current version of Chrome or Edge.",
+      liveCaptionNetworkError: "The browser speech-recognition service could not be reached. Check your internet connection and try again.",
+      liveCaptionAudioError: "No usable audio input was found. Check the shared tab or microphone permission.",
+      liveCaptionLanguageError: "This browser speech service does not support the selected spoken language.",
       liveCaptionNoTabAudio: "No tab audio was shared. Choose this tab and enable Share tab audio, or use microphone mode with speakers.",
       liveCaptionTabUnsupported: "This browser cannot send shared-tab audio to speech recognition. Choose Microphone / speakers, or try an up-to-date Chrome build that supports audio-track recognition.",
       liveCaptionTranslated: "Live captions are active.",
@@ -285,6 +291,9 @@
       liveCaptionDescription: "Rozpoznawaj mowę i tłumacz ją na napisy podczas odtwarzania filmu.",
       liveCaptionIdle: "Nie nasłuchuje",
       liveCaptionListening: "Nasłuchiwanie i tłumaczenie…",
+      liveCaptionNoSpeech: "Nie słychać mowy — sprawdź źródło i głośność dźwięku.",
+      liveCaptionUsingMicFallback: "Rozpoznawanie dźwięku karty niedostępne; nasłuchiwanie przez mikrofon.",
+      recognizedSpeechLabel: "Rozpoznano:",
       liveCaptionStopping: "Zatrzymywanie…",
       spokenLanguageLabel: "Język mówiony",
       captionLanguageLabel: "Język napisów",
@@ -295,6 +304,9 @@
       btnStopListening: "Zatrzymaj napisy na żywo",
       liveCaptionPrivacy: "Aby wyświetlać napisy na anime, odtwórz film w tym odtwarzaczu i udostępnij dźwięk tej karty. Tryb mikrofonu nasłuchuje pobliskich głośników. Przeglądarka i dostawca tłumaczeń mogą przetwarzać dźwięk lub transkrypcję online.",
       liveCaptionUnsupported: "Rozpoznawanie mowy na żywo nie jest dostępne w tej przeglądarce. Użyj aktualnej wersji Chrome lub Edge.",
+      liveCaptionNetworkError: "Nie można połączyć się z usługą rozpoznawania mowy przeglądarki. Sprawdź internet i spróbuj ponownie.",
+      liveCaptionAudioError: "Brak działającego źródła dźwięku. Sprawdź udostępnioną kartę lub dostęp do mikrofonu.",
+      liveCaptionLanguageError: "Usługa rozpoznawania mowy przeglądarki nie obsługuje wybranego języka.",
       liveCaptionNoTabAudio: "Nie udostępniono dźwięku karty. Wybierz tę kartę i włącz udostępnianie dźwięku albo użyj mikrofonu i głośników.",
       liveCaptionTabUnsupported: "Ta przeglądarka nie przekazuje dźwięku karty do rozpoznawania mowy. Wybierz mikrofon i głośniki albo zaktualizowaną wersję Chrome z obsługą ścieżki audio.",
       liveCaptionTranslated: "Napisy na żywo są aktywne.",
@@ -2442,6 +2454,8 @@
     const btnLiveCaptions = document.getElementById("btn-live-captions");
     const liveCaptionStatus = document.getElementById("live-caption-status");
     const liveCaptionOverlay = document.getElementById("live-caption-overlay");
+    const liveCaptionHeard = document.getElementById("live-caption-heard");
+    const liveCaptionTranscript = document.getElementById("live-caption-transcript");
     const cacheHitBadge = document.getElementById("cache-hit-badge");
     const providerBadge = document.getElementById("active-provider-badge");
     const currentVideoTitle = document.getElementById("current-video-title");
@@ -2535,6 +2549,7 @@
     let liveTranslator = null;
     let liveCaptionHideTimer = null;
     let liveFallbackToastShown = false;
+    let liveUsingMicFallback = false;
     let liveStatusKey = "liveCaptionIdle";
 
     /* ----------------------------------------------------------------------
@@ -2883,6 +2898,7 @@
       liveAudioStream = null;
       liveAudioTrack = null;
       liveTranslator = null;
+      liveUsingMicFallback = false;
       if (btnLiveCaptions) {
         btnLiveCaptions.disabled = false;
         btnLiveCaptions.textContent = LocalizationManager.t(uiLang, "btnStartListening");
@@ -2891,6 +2907,8 @@
         if (select) select.disabled = false;
       });
       if (liveCaptionOverlay) liveCaptionOverlay.hidden = true;
+      if (liveCaptionHeard) liveCaptionHeard.hidden = true;
+      if (liveCaptionTranscript) liveCaptionTranscript.textContent = "";
       if (liveCaptionHideTimer) clearTimeout(liveCaptionHideTimer);
       setLiveCaptionStatus(statusKey, false);
       const previousTrack = livePreviousTrack;
@@ -2920,20 +2938,32 @@
       try {
         if (liveAudioSourceSelect && liveAudioSourceSelect.value === "tab") {
           if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-            throw new Error(LocalizationManager.t(uiLang, "liveCaptionNoTabAudio"));
+            liveUsingMicFallback = true;
+          } else {
+            try {
+              liveAudioStream = await navigator.mediaDevices.getDisplayMedia({
+                video: { frameRate: 1 }, audio: true
+              });
+              audioTrack = liveAudioStream.getAudioTracks()[0] || null;
+              if (!audioTrack) {
+                liveAudioStream.getTracks().forEach((track) => track.stop());
+                liveAudioStream = null;
+                liveUsingMicFallback = true;
+              }
+            } catch (captureError) {
+              console.warn("Shared-tab audio unavailable; falling back to microphone:", captureError);
+              if (liveAudioStream) liveAudioStream.getTracks().forEach((track) => track.stop());
+              liveAudioStream = null;
+              liveUsingMicFallback = true;
+            }
           }
-          liveAudioStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { frameRate: 1 }, audio: true
-          });
-          audioTrack = liveAudioStream.getAudioTracks()[0] || null;
-          if (!audioTrack) throw new Error(LocalizationManager.t(uiLang, "liveCaptionNoTabAudio"));
         }
 
         const recognition = new Recognition();
         const sourceCode = liveSourceLanguageSelect?.value || "ja";
         recognition.lang = SPEECH_RECOGNITION_LOCALES[sourceCode] || sourceCode;
         recognition.continuous = true;
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.maxAlternatives = 1;
         liveSessionToken += 1;
         const sessionToken = liveSessionToken;
@@ -2956,12 +2986,24 @@
         }
         setLiveCaptionStatus("liveCaptionListening", true);
 
+        recognition.onstart = () => {
+          if (liveStatusKey !== "liveCaptionNoSpeech") {
+            setLiveCaptionStatus(liveUsingMicFallback ? "liveCaptionUsingMicFallback" : "liveCaptionListening", true);
+          }
+        };
         recognition.onresult = (event) => {
+          const interimParts = [];
           for (let index = event.resultIndex; index < event.results.length; index += 1) {
             const speechResult = event.results[index];
-            if (!speechResult.isFinal) continue;
             const transcript = speechResult[0]?.transcript?.trim();
             if (!transcript) continue;
+            if (!speechResult.isFinal) {
+              interimParts.push(transcript);
+              continue;
+            }
+            if (liveCaptionTranscript) liveCaptionTranscript.textContent = transcript;
+            if (liveCaptionHeard) liveCaptionHeard.hidden = false;
+            setLiveCaptionStatus(liveUsingMicFallback ? "liveCaptionUsingMicFallback" : "liveCaptionListening", true);
             const source = liveSourceLanguageSelect?.value || "ja";
             const target = liveTargetLanguageSelect?.value || "pl";
             liveTranslationQueue = liveTranslationQueue.then(async () => {
@@ -2988,12 +3030,33 @@
               });
             });
           }
+          if (interimParts.length && liveCaptionTranscript) {
+            liveCaptionTranscript.textContent = `${interimParts.join(" ")} …`;
+            if (liveCaptionHeard) liveCaptionHeard.hidden = false;
+          }
         };
         recognition.onerror = (event) => {
-          if (["no-speech", "aborted"].includes(event.error)) return;
+          if (event.error === "aborted") return;
+          if (event.error === "no-speech") {
+            setLiveCaptionStatus("liveCaptionNoSpeech", true);
+            return;
+          }
+          if (event.error === "audio-capture" && liveAudioTrack) {
+            liveUsingMicFallback = true;
+            const failedStream = liveAudioStream;
+            liveAudioStream = null;
+            liveAudioTrack = null;
+            if (failedStream) failedStream.getTracks().forEach((track) => track.stop());
+            setLiveCaptionStatus("liveCaptionUsingMicFallback", true);
+            return;
+          }
+          const errorKey = event.error === "network" ? "liveCaptionNetworkError"
+            : event.error === "audio-capture" ? "liveCaptionAudioError"
+              : event.error === "language-not-supported" ? "liveCaptionLanguageError"
+                : "liveCaptionUnsupported";
           const message = event.error === "not-allowed"
-            ? (uiLang === "pl" ? "Zezwól przeglądarce na dostęp do dźwięku." : "Allow the browser to access audio.")
-            : LocalizationManager.t(uiLang, "liveCaptionUnsupported");
+            ? (uiLang === "pl" ? "Zezwól przeglądarce na dostęp do dźwięku. Jeśli to podgląd w ramce, otwórz aplikację w osobnej karcie." : "Allow audio access. If this is an embedded preview, open the app in its own tab.")
+            : LocalizationManager.t(uiLang, errorKey);
           showToast({
             title: uiLang === "pl" ? "Rozpoznawanie mowy zatrzymane" : "Speech recognition stopped",
             message,
@@ -3017,14 +3080,28 @@
         if (liveAudioStream) {
           liveAudioStream.getTracks().forEach((track) => {
             track.addEventListener("ended", () => {
-              if (liveActive && sessionToken === liveSessionToken) {
+              if (liveActive && sessionToken === liveSessionToken && !liveUsingMicFallback) {
                 stopLiveCaptions({ statusKey: "liveCaptionIdle" });
               }
             }, { once: true });
           });
         }
-        if (audioTrack) recognition.start(audioTrack);
-        else recognition.start();
+        if (audioTrack) {
+          try {
+            recognition.start(audioTrack);
+          } catch (tabStartError) {
+            console.warn("Speech recognition rejected shared-tab audio; falling back to microphone:", tabStartError);
+            if (liveAudioStream) liveAudioStream.getTracks().forEach((track) => track.stop());
+            liveAudioStream = null;
+            liveAudioTrack = null;
+            audioTrack = null;
+            liveUsingMicFallback = true;
+            setLiveCaptionStatus("liveCaptionUsingMicFallback", true);
+            recognition.start();
+          }
+        } else {
+          recognition.start();
+        }
       } catch (error) {
         console.error("Could not start live captions:", error);
         liveStarting = false;
@@ -3032,6 +3109,7 @@
         else {
           if (liveAudioStream) liveAudioStream.getTracks().forEach((track) => track.stop());
           liveAudioStream = null;
+          liveUsingMicFallback = false;
           if (btnLiveCaptions) btnLiveCaptions.disabled = false;
           setLiveCaptionStatus("liveCaptionIdle", false);
           showToast({
