@@ -1,6 +1,6 @@
 # StreamPL — Browser Video Localization Engine
 
-A **client-side, framework-free JavaScript engine** for subtitle localization and live video captions, with an embeddable native-player component and an optional demo/creator studio. Integrate the engine into an existing video site or publish the included static demo; neither use requires a backend or build step. Optional GitHub Actions workflows generate headless subtitle tracks. No npm install is required. Local Whisper downloads a pinned browser inference runtime and quantized model on demand, without adding a server or build dependency.
+A **framework-free JavaScript video-localization engine** with an embeddable native-player component, browser subtitle core, and an optional Node.js API for self-hosted translation. Integrate it into an existing site or run the bundled demo. The API uses your own local Ollama model by default—no cloud translation key or npm dependencies required—and can batch subtitle cues for lower overhead. Static browser-only deployment remains available, and GitHub Actions can still generate headless tracks.
 
 ## Quick Start
 
@@ -10,7 +10,31 @@ A **client-side, framework-free JavaScript engine** for subtitle localization an
 
 ### Live speech-to-caption architecture
 
-Live captions are composed from small browser-side modules rather than one all-in-one engine: `audio-signal-processor.js` handles PCM preparation, `local-whisper-provider.js` owns local model inference and speech-aware chunking, and `live-caption-engine.js` orchestrates capture, providers, cancellation, serial translation, and rendering. See the [architecture notes](docs/architecture.md) for their contracts and lifecycle. AudioWorklet frames are batched to limit message/GC overhead; quiet windows are skipped, phrases flush at pauses, and audio is converted to 16 kHz and gently leveled. Whisper Base is the balanced default; Tiny is lighter, while Small is a higher-resource choice. Two-beam decoding favors recognition quality over minimum latency; WebGPU is attempted first, with WASM fallback. For best results, share the tab's audio; microphone capture intentionally disables echo/noise suppression so it does not mistake playback for echo. Built-in product-name protection (including **YouTube Shorts**) is shared across browser, live, and Node headless translations. Live translation carries recent lines and register when using an OpenAI-compatible translator. The pinned Transformers.js runtime and pretrained ONNX Whisper weights download on demand; no model binaries or backend are added. These are pretrained models, not trained by this repository. Actual browser downloads/device performance depend on the user's browser, hardware, and network. Translation uses the configured client-side provider and may need internet access.
+Live captions are composed from small browser-side modules rather than one all-in-one engine: `audio-signal-processor.js` handles PCM preparation, `local-whisper-provider.js` owns local model inference and speech-aware chunking, and `live-caption-engine.js` orchestrates capture, providers, cancellation, serial translation, and rendering. See the [architecture notes](docs/architecture.md) for their contracts and lifecycle. AudioWorklet frames are batched to limit message/GC overhead; quiet windows are skipped, phrases flush at pauses, and audio is converted to 16 kHz and gently leveled. Whisper Base is the balanced default; Tiny is lighter, while Small is a higher-resource choice. Two-beam decoding favors recognition quality over minimum latency; WebGPU is attempted first, with WASM fallback. For best results, share the tab's audio; microphone capture intentionally disables echo/noise suppression so it does not mistake playback for echo. Built-in product-name protection (including **YouTube Shorts**) is shared across browser, live, and Node headless translations. Live translation carries recent lines and register when using an OpenAI-compatible translator. The pinned Transformers.js runtime and pretrained ONNX Whisper weights download on demand; no model binaries are bundled. These are pretrained models, not trained by this repository. Actual browser downloads/device performance depend on the user's browser, hardware, and network. Translation can use the optional local Node/Ollama backend or a configured external provider.
+
+## Run your own translation backend
+
+The optional backend is a zero-dependency Node.js service that serves the browser app and its same-origin translation API. Its default provider is a **local Ollama model**, so subtitle text stays on the machine running Ollama and there is no per-call third-party quota. Compute is still bounded by your hardware, and public hosting still costs server resources.
+
+1. Install Node.js 22+ (or Node.js 20.6+) and Ollama on the machine that will run the engine.
+2. Pull a multilingual model once. The default balances quality and speed; use `qwen2.5:3b` for a lighter/faster model or set another model in `.env`.
+
+   ```sh
+   ollama pull qwen2.5:7b
+   ```
+
+3. Copy `.env.example` to `.env`, then start the app server:
+
+   ```sh
+   cp .env.example .env
+   npm run start:env
+   ```
+
+4. Open `http://localhost:8081`, then choose **StreamPL Self-Hosted Backend** under Creator Studio → Settings. The browser sends cue batches to the same-origin `/api/translate` endpoints; a batch of up to 12 cues is handled in one model request. Glossary placeholders, neighboring-cue context, WebVTT timing, and the existing local browser cache remain in place.
+
+Useful endpoints are `GET /api/health`, `POST /api/translate`, and `POST /api/translate/batch`. The API has bounded request sizes, batch sizes, concurrency/queue depth, an in-memory LRU result cache, and per-IP request throttling. It has no user authentication or TLS termination built in: **do not expose it directly to the public internet**. Put it behind your site's authentication and HTTPS reverse proxy, and restrict access to trusted origins/network clients. For an OpenAI-compatible provider, set its base URL, model, and secret key in the server environment; the key is never sent to the browser. GitHub Pages is static hosting and cannot run this Node backend, so use a Node-capable host or your own server for this mode.
+
+The server is split into `server/index.js` (HTTP/static delivery and limits), `server/translation-service.js` (validation, batching, cache), and provider adapters in `server/providers/`. The frontend's `streampl_backend` adapter speaks only to the engine API, so provider credentials and model choices live on the server.
 
 ## Embed the localization engine in your own site
 
@@ -45,7 +69,7 @@ player.configure({
     { source: "the red door", target: "the safe house" }
   ],
   videoOptions: { controls: true, playsInline: true, preload: "metadata", playbackRate: 1 },
-  engineOptions: { provider: "google_gtx" }
+  engineOptions: { provider: "streampl_backend" }
 });
 player.addEventListener("streampl-translated", (event) => console.log(event.detail));
 player.addEventListener("streampl-error", (event) => console.error(event.detail));
@@ -53,7 +77,7 @@ player.addEventListener("streampl-error", (event) => console.error(event.detail)
 
 A glossary pair is `{ source, target }` and is protected from provider edits, then restored exactly; `target` may be one preferred phrase or a language-code map such as `{ pl: "Projekt", de: "Projekt" }`. This covers product names, project terminology, and known non-literal equivalents. The same `glossary` array can be placed in a media metadata sidecar for generated tracks; language-specific targets are selected for each generated locale. Browser subtitle requests make the previous five and next two source cues available as context to OpenAI-compatible and DeepL providers, while translating only the active cue. OpenAI-compatible providers also receive explicit instructions for idiomatic localization. Glossary changes invalidate cached translations.
 
-The element exposes its underlying media node as `player.videoElement` and emits `streampl-languagechange`, `streampl-translated`, and `streampl-error` events. It can be styled through the `streampl-player` host or its `::part(video)` and `::part(toolbar)` hooks. The standalone embed needs no bundler, npm package, backend, or framework. It relies on `app.js` as the shared translation core; loading it on another site does not initialize the demo UI unless that page contains the demo's `#video-player` element.
+The element exposes its underlying media node as `player.videoElement` and emits `streampl-languagechange`, `streampl-translated`, and `streampl-error` events. It can be styled through the `streampl-player` host or its `::part(video)` and `::part(toolbar)` hooks. The standalone embed needs no bundler, npm package, or framework. Static/provider mode can run without your own backend; selecting `streampl_backend` requires the Node API. Since the API intentionally does not enable cross-origin requests, proxy `/api/*` through your site origin when the video page and engine server are on different origins. It relies on `app.js` as the shared translation core; loading it on another site does not initialize the demo UI unless that page contains the demo's `#video-player` element.
 
 Translation quality and available idiom/context handling depend on the selected provider. OpenAI-compatible providers receive explicit localization guidance to preserve intent, voice, humor, register, and idiomatic meaning across language pairs; standard translation APIs are used as configured and do not receive that same prompt. Browser-only API keys are visible to visitors, so do not embed private provider credentials in public pages—use a restricted key or a secure provider endpoint if credentials are required. The engine cannot promise perfect interpretation for every phrase; review important legal, medical, or commercial subtitles.
 
@@ -102,11 +126,18 @@ The translation/formatting engine also provides:
 
 ```text
 index.html                         # Relative redirect for root-based static hosting
+package.json                       # Zero-dependency run/test scripts
+.env.example                       # Local-model/server configuration template
 .github/workflows/
   auto-translate-pipeline.yml      # Raw media → tracks + CMS catalog → commit
   pages-deploy.yml                 # GitHub Pages static deployment
+  tests.yml                        # Zero-dependency Node and API test suite
 assets/raw/                        # Incoming video/subtitle content
 scripts/headless-translator.js     # Zero-dependency headless Node translation/build
+server/
+  index.js                         # Same-origin HTTP API and static asset server
+  translation-service.js           # Batched translation, validation, bounded LRU
+  providers/                       # Local Ollama and OpenAI-compatible adapters
 web/
   index.html                       # Public Video Hub and hidden Creator Studio
   app.js                           # Viewer/UI composition and subtitle localization flows
@@ -127,7 +158,7 @@ tests/app.test.js                  # Zero-dependency Node test suite
 ## Validation
 
 ```sh
-node --test tests/app.test.js
+npm test
 node scripts/headless-translator.js --help
 node scripts/headless-translator.js --offline
 ```

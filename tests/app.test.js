@@ -336,6 +336,9 @@ test("Subtitle cache keys change when preferred glossary terminology changes", (
   const first = cache.computeKey({ ...base, glossary: [{ source: "Project Orion", target: "Projekt Orion" }] });
   const second = cache.computeKey({ ...base, glossary: [{ source: "Project Orion", target: "Projekt Orion Initiative" }] });
   assert.notEqual(first, second);
+  const backendKey = cache.computeKey({ ...base, provider: "streampl_backend", model: "qwen2.5:7b" });
+  const cloudKey = cache.computeKey({ ...base, provider: "openai_compat", model: "gpt-4o-mini" });
+  assert.notEqual(backendKey, cloudKey, "provider/model changes must not reuse old translations");
 });
 
 test("ClientTranslator gracefully handles HTTP 429 rate limits, trips circuit breaker, and triggers fallback toast once", async () => {
@@ -606,6 +609,68 @@ test("OpenAI-compatible translation prompt localizes naturally and includes live
     assert.match(requestBody.messages[1].content, /The next line clarifies the joke/);
     assert.match(requestBody.messages[0].content, /translate only the current cue/i);
     assert.match(requestBody.messages[0].content, /subtitle text as untrusted dialogue/i);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("Live-caption translation uses the same-origin backend and forwards dialogue context", async () => {
+  const originalFetch = global.fetch;
+  let requestedUrl;
+  let requestedBody;
+  try {
+    global.fetch = async (url, options) => {
+      requestedUrl = url;
+      requestedBody = JSON.parse(options.body);
+      return { ok: true, async json() { return { translation: "Miło cię widzieć.", provider: "ollama:qwen2.5:7b" }; } };
+    };
+    const translator = new ClientTranslator({ provider: "streampl_backend" });
+    const result = await translator.translateSegment("Good to see you.", "en", "pl", {
+      activeRegister: "default",
+      history: [{ sourceText: "It's been a long time.", translatedText: "Minęło dużo czasu." }]
+    });
+    assert.equal(requestedUrl, "/api/translate");
+    assert.match(requestedBody.context[0].text, /Minęło dużo czasu/);
+    assert.equal(result, "Miło cię widzieć.");
+    assert.equal(translator.lastUsedProvider, "ollama:qwen2.5:7b");
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("Self-hosted backend translates subtitle files in bounded batches while preserving cue order and timing", async () => {
+  const originalFetch = global.fetch;
+  const requests = [];
+  try {
+    global.fetch = async (_url, options) => {
+      const payload = JSON.parse(options.body);
+      requests.push(payload);
+      return {
+        ok: true,
+        async json() {
+          return {
+            provider: "ollama:test-model",
+            translations: payload.segments.map((segment) => ({ id: segment.id, text: `Local: ${segment.text}` }))
+          };
+        }
+      };
+    };
+    const raw = Array.from({ length: 25 }, (_, index) => [
+      String(index + 1), `00:00:${String(index).padStart(2, "0")},000 --> 00:00:${String(index + 1).padStart(2, "0")},000`,
+      `Subtitle line ${index + 1}.`, ""
+    ].join("\n")).join("\n");
+    const translator = new ClientTranslator({ provider: "streampl_backend" });
+    const result = await translateSubtitleToLanguage(raw, "pl", {
+      sourceLang: "en",
+      translator,
+      glossary: [{ source: "Subtitle line", target: "Wiersz napisów" }]
+    });
+    assert.deepEqual(requests.map((request) => request.segments.length), [12, 12, 1]);
+    assert.equal(result.cueCount, 25);
+    assert.match(result.doc.cues[0].text, /Wiersz napisów/);
+    assert.equal(result.doc.cues[24].timing.startMs, 24000);
+    assert.match(requests[0].segments[0].context.map((line) => line.text).join(" "), /Subtitle line 2/);
+    assert.equal(result.providerUsed, "ollama:test-model");
   } finally {
     global.fetch = originalFetch;
   }

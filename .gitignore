@@ -1,3 +1,7 @@
+# Local secrets/config
+.env
+server/.env
+
 # Dependencies & caches
 node_modules/
 .cache/

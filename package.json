@@ -1,0 +1,16 @@
+{
+  "name": "streampl-translation-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-hostable video subtitle localization engine and embeddable player",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "start:env": "node --env-file=.env server/index.js",
+    "test": "node --test tests/*.test.js",
+    "test:browser": "node --test tests/app.test.js",
+    "help:build": "node scripts/headless-translator.js --help"
+  }
+}

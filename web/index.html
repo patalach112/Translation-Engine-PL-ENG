@@ -509,7 +509,7 @@
         <div class="studio-pane" id="studio-pane-settings" role="tabpanel" hidden>
           <div class="studio-section">
             <h3 class="studio-section-title" data-i18n="apiSettingsHeading">
-              Client-Side Translation Provider &amp; API Keys
+              Translation Backend &amp; Provider Settings
             </h3>
 
             <div class="field-group">
@@ -517,6 +517,7 @@
                 Translation Endpoint Mode
               </label>
               <select id="setting-provider">
+                <option value="streampl_backend">StreamPL Self-Hosted Backend (local Ollama model)</option>
                 <option value="auto">
                   Auto Free (Google GTX &rarr; MyMemory CORS &rarr; Offline Dictionary)
                 </option>
@@ -552,7 +553,7 @@
             <div class="field-group">
               <div class="field-label">
                 <label for="setting-custom-endpoint" data-i18n="corsProxyLabel">
-                  Optional Custom Endpoint or CORS Proxy Prefix
+                  Optional backend/API endpoint URL
                 </label>
               </div>
               <input

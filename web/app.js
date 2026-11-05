@@ -1,7 +1,7 @@
 /**
- * StreamPL / Translation-Engine-PL-ENG — Production Client-Side Localization & Video Hub
+ * StreamPL / Translation-Engine-PL-ENG — Browser Localization Engine & Video Demo
  *
- * 100% Serverless Vanilla JavaScript (ES6+) Engine:
+ * Framework-free browser engine with an optional same-origin Node translation API:
  * - Separate Public Streaming Hub (Viewer UI) & Slide-Over Creator Studio (Admin Panel)
  * - Auto-Localization (`navigator.language` Polish detection for UI + default `<track>`)
  * - Persistent Viewer Subtitle Track Preference (`localStorage`) across sessions & videos
@@ -283,10 +283,10 @@
       sourceEditorHeading: "Source Subtitles (.srt or .vtt)",
       btnTranslateNow: "Translate & Publish EN / PL Tracks",
       btnBypassCache: "Re-run (Bypass Cache)",
-      apiSettingsHeading: "Client-Side Translation Provider & API Keys",
-      providerLabel: "Translation Endpoint Mode",
+      apiSettingsHeading: "Translation Backend & Provider Settings",
+      providerLabel: "Translation engine",
       apiKeyLabel: "Optional Free API Key / MyMemory Email",
-      corsProxyLabel: "Optional Custom Endpoint or CORS Proxy Prefix",
+      corsProxyLabel: "Optional backend/API endpoint URL",
       btnReset: "Reset Defaults",
       btnSave: "Save & Apply",
       cacheSectionHeading: "Sub-Second Offline Subtitle Cache",
@@ -295,7 +295,7 @@
       btnClearCache: "Clear Subtitle Cache",
       toastFallbackTitle: "Switched to Offline Smart Dictionary",
       toastFallbackMsg:
-        "Public translation API was unreachable or rate-limited. Subtitles were translated locally without interruption.",
+        "The selected translation service was unavailable or rate-limited. The engine used its local fallback.",
       toastCacheClearedTitle: "Subtitle Cache Cleared",
       toastCacheClearedMsg: "All cached WebVTT tracks have been removed from localStorage.",
       toastTranslatedTitle: "Subtitles Ready",
@@ -386,10 +386,10 @@
       sourceEditorHeading: "Źródłowe napisy (.srt lub .vtt)",
       btnTranslateNow: "Przetłumacz i opublikuj ścieżki PL / EN",
       btnBypassCache: "Przetłumacz ponownie (bez cache)",
-      apiSettingsHeading: "Silnik tłumaczeń i opcjonalne klucze API",
-      providerLabel: "Tryb dostawcy tłumaczeń",
+      apiSettingsHeading: "Backend tłumaczeń i ustawienia dostawcy",
+      providerLabel: "Silnik tłumaczeń",
       apiKeyLabel: "Opcjonalny darmowy klucz API / e-mail MyMemory",
-      corsProxyLabel: "Opcjonalny adres endpointu lub prefiks CORS Proxy",
+      corsProxyLabel: "Opcjonalny adres backendu lub API",
       btnReset: "Przywróć domyślne",
       btnSave: "Zapisz ustawienia",
       cacheSectionHeading: "Błyskawiczna pamięć podręczna napisów",
@@ -398,7 +398,7 @@
       btnClearCache: "Wyczyść pamięć podręczną",
       toastFallbackTitle: "Przełączono na Słownik Offline",
       toastFallbackMsg:
-        "Publiczne API tłumaczeń było niedostępne lub przekroczono limit zapytań. Napisy przetłumaczono lokalnie bez przerw.",
+        "Wybrana usługa tłumaczeń jest niedostępna lub ograniczyła zapytania. Użyto lokalnego trybu zastępczego.",
       toastCacheClearedTitle: "Wyczyszczono pamięć podręczną",
       toastCacheClearedMsg: "Zapisane ścieżki WebVTT zostały usunięte z przeglądarki.",
       toastTranslatedTitle: "Napisy gotowe",
@@ -877,11 +877,13 @@
       rawText = "",
       registerMode = "auto",
       maxCpl = 42,
-      glossary = []
+      glossary = [],
+      provider = "auto",
+      model = ""
     }) {
       const normalizedSubs = String(rawText).replace(/\r\n/g, "\n").trim();
       const normalizedGlossary = JSON.stringify(normalizeGlossaryEntries(glossary));
-      const composite = `translation-v4|${videoKey}|${subtitleName}|${registerMode}|${maxCpl}|${normalizedGlossary}|${normalizedSubs}`;
+      const composite = `translation-v5|${videoKey}|${subtitleName}|${registerMode}|${maxCpl}|${provider}|${model}|${normalizedGlossary}|${normalizedSubs}`;
       return `vtt_${hashFingerprint(composite)}`;
     }
 
@@ -1704,6 +1706,44 @@
     return { ...contextEval, upcoming };
   }
 
+  async function translateSubtitleCuesWithBackend(sourceDoc, sourceLang, targetLang, translator, options = {}) {
+    const batchSize = 12;
+    const maxCpl = Number(options.maxCpl) || 42;
+    const glossary = options.glossary || [];
+    const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
+    const context = new RollingContextWindow(5, options.registerMode || "auto");
+    const output = [];
+
+    for (let offset = 0; offset < sourceDoc.cues.length; offset += batchSize) {
+      const cueBatch = sourceDoc.cues.slice(offset, offset + batchSize);
+      const prepared = cueBatch.map((cue, localIndex) => {
+        const cueIndex = offset + localIndex;
+        const contextEval = addUpcomingSubtitleContext(context.evaluate(cue.text), sourceDoc.cues, cueIndex);
+        const masked = maskTranslationInput(cue.text, glossary, targetLang);
+        context.push(cue.index, cue.text, "", contextEval.activeRegister);
+        return { cue, contextEval, masked };
+      });
+      const results = await translator.translateSegments(prepared.map(({ cue, contextEval, masked }) => ({
+        id: String(cue.index), text: masked.cleanText, contextEval
+      })), sourceLang, targetLang);
+      const byId = new Map(results.map((result) => [String(result.id), result.text]));
+
+      for (let localIndex = 0; localIndex < prepared.length; localIndex += 1) {
+        const { cue, contextEval, masked } = prepared[localIndex];
+        const translated = byId.get(String(cue.index));
+        if (!translated) throw new Error(`Backend returned no translation for cue ${cue.index}.`);
+        let restored = masked.restore(translated);
+        if (targetLang === "pl") restored = PolishRegisterHarmonizer.harmonize(restored, contextEval.activeRegister);
+        const formatted = TextFormatter.formatCueText(restored, { maxCpl, lang: targetLang });
+        output.push({ ...cue, text: formatted });
+        const historyEntry = context.history.find((item) => item.cueIndex === cue.index);
+        if (historyEntry) historyEntry.translatedText = formatted;
+        if (onProgress) onProgress(Math.round(((offset + localIndex + 1) / sourceDoc.cues.length) * 100), offset + localIndex + 1, sourceDoc.cues.length);
+      }
+    }
+    return output;
+  }
+
   const PolishRegisterHarmonizer = {
     harmonize(polishText, activeRegister) {
       let out = String(polishText || "");
@@ -1801,6 +1841,7 @@
         myMemoryTripped: false,
         deeplTripped: false,
         llmTripped: false,
+        backendTripped: false,
         notifiedFallback: false,
         failedEndpoints: []
       };
@@ -1812,6 +1853,7 @@
         myMemoryTripped: false,
         deeplTripped: false,
         llmTripped: false,
+        backendTripped: false,
         notifiedFallback: false,
         failedEndpoints: []
       };
@@ -1868,6 +1910,79 @@
         return await fetch(url, { ...options, signal: controller.signal });
       } finally {
         clearTimeout(timer);
+      }
+    }
+
+    async _translateBackend(text, sourceLang, targetLang, contextEval = {}) {
+      const context = [
+        ...(contextEval.history || []).map((cue) => ({ label: "previous", text: `${cue.sourceText || ""} => ${cue.translatedText || ""}` })),
+        ...(contextEval.upcoming || []).map((cue) => ({ label: "following", text: cue.sourceText || "" }))
+      ].filter((cue) => cue.text).slice(-7);
+      const endpoint = this.customEndpoint || "/api/translate";
+      const response = await this._fetchWithTimeout(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, sourceLanguage: sourceLang, targetLanguage: targetLang, context })
+      }, 90000);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = payload && payload.error && payload.error.message;
+        throw new Error(message || `Translation backend HTTP ${response.status}`);
+      }
+      if (!payload || typeof payload.translation !== "string" || !payload.translation.trim()) {
+        throw new Error("Translation backend returned an empty response");
+      }
+      this.lastUsedProvider = payload.provider || "streampl-backend";
+      return payload.translation.trim();
+    }
+
+    async translateSegments(segments, sourceLang, targetLang) {
+      if (this.provider !== "streampl_backend") throw new Error("Batch translation is available only with the StreamPL backend.");
+      if (this._circuit.backendTripped) {
+        return segments.map((segment) => ({
+          id: String(segment.id),
+          text: this.translateOffline(segment.text, sourceLang, targetLang, segment.contextEval?.activeRegister || "default")
+        }));
+      }
+      const endpoint = this.customEndpoint
+        ? this.customEndpoint.replace(/\/+$/, "").replace(/\/translate$/, "/translate/batch")
+        : "/api/translate/batch";
+      const requestSegments = segments.map((segment) => ({
+        id: String(segment.id),
+        text: segment.text,
+        context: [
+          ...(segment.contextEval?.history || []).map((cue) => ({
+            label: "previous",
+            text: `${cue.sourceText || ""}${cue.translatedText ? ` => ${cue.translatedText}` : ""}`
+          })),
+          ...(segment.contextEval?.upcoming || []).map((cue) => ({ label: "following", text: cue.sourceText || "" }))
+        ].filter((cue) => cue.text).slice(-7)
+      }));
+      try {
+        const response = await this._fetchWithTimeout(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceLanguage: sourceLang, targetLanguage: targetLang, segments: requestSegments })
+        }, 90000);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload?.error?.message || `Translation backend HTTP ${response.status}`);
+        if (!Array.isArray(payload.translations) || payload.translations.length !== segments.length) {
+          throw new Error("Translation backend returned an incomplete batch");
+        }
+        const translations = new Map(payload.translations.map((item) => [String(item.id), String(item.text || "").trim()]));
+        if (translations.size !== segments.length || segments.some((segment) => !translations.get(String(segment.id)))) {
+          throw new Error("Translation backend returned missing or duplicate cue ids");
+        }
+        this.lastUsedProvider = payload.provider || "streampl-backend";
+        return segments.map((segment) => ({ id: String(segment.id), text: translations.get(String(segment.id)) }));
+      } catch (error) {
+        this._circuit.backendTripped = true;
+        this._recordEndpointFailure("StreamPL backend", error);
+        this._notifyFallbackOnce();
+        return segments.map((segment) => ({
+          id: String(segment.id),
+          text: this.translateOffline(segment.text, sourceLang, targetLang, segment.contextEval?.activeRegister || "default")
+        }));
       }
     }
 
@@ -2082,7 +2197,20 @@
 
       let rawTranslated = "";
 
-      if (this.provider === "offline") {
+      if (this.provider === "streampl_backend") {
+        if (!this._circuit.backendTripped) {
+          try {
+            rawTranslated = await this._translateBackend(text, sourceLang, targetLang, contextEval);
+          } catch (error) {
+            this._circuit.backendTripped = true;
+            this._recordEndpointFailure("StreamPL backend", error);
+            this._notifyFallbackOnce();
+            rawTranslated = this.translateOffline(text, sourceLang, targetLang, activeReg);
+          }
+        } else {
+          rawTranslated = this.translateOffline(text, sourceLang, targetLang, activeReg);
+        }
+      } else if (this.provider === "offline") {
         rawTranslated = this.translateOffline(text, sourceLang, targetLang, activeReg);
       } else if (this.provider === "google_gtx") {
         if (!this._circuit.googleGtxTripped) {
@@ -2336,7 +2464,9 @@
         rawText: rawInput,
         registerMode,
         maxCpl,
-        glossary: options.glossary || []
+        glossary: options.glossary || [],
+        provider: options.settings && options.settings.provider || options.translator && options.translator.provider || "auto",
+        model: options.settings && options.settings.llmModel || ""
       });
 
       if (!bypassCache) {
@@ -2394,61 +2524,70 @@
     const translatedCues = [];
     const total = sourceDoc.cues.length;
 
-    for (let i = 0; i < total; i += 1) {
-      const cue = sourceDoc.cues[i];
-      const plainSource = cue.text.replace(/\s+/g, " ").trim();
-      const contextEval = addUpcomingSubtitleContext(
-        rollingWindow.evaluate(plainSource), sourceDoc.cues, i
-      );
-
-      const formattedNativeText = TextFormatter.formatCueText(cue.text, {
-        maxCpl,
-        lang: detectedLang
-      });
-      nativeCues.push({
-        index: cue.index,
-        identifier: cue.identifier,
-        timing: cue.timing,
-        text: formattedNativeText
-      });
-
-      const { turns } = TokenShield.splitDialogueTurns(cue.text);
-      const translatedTurns = [];
-
-      for (const turn of turns) {
-        const masked = maskTranslationInput(turn, options.glossary || [], targetLang);
-        const rawTarget = await translator.translateSegment(
-          masked.cleanText,
-          detectedLang,
-          targetLang,
-          contextEval
-        );
-        const restored = masked.restore(rawTarget);
-        translatedTurns.push(restored);
+    if (translator.provider === "streampl_backend" && typeof translator.translateSegments === "function") {
+      for (const cue of sourceDoc.cues) {
+        nativeCues.push({ ...cue, text: TextFormatter.formatCueText(cue.text, { maxCpl, lang: detectedLang }) });
       }
+      translatedCues.push(...await translateSubtitleCuesWithBackend(
+        sourceDoc, detectedLang, targetLang, translator, { ...options, maxCpl, registerMode, onProgress }
+      ));
+    } else {
+      for (let i = 0; i < total; i += 1) {
+        const cue = sourceDoc.cues[i];
+        const plainSource = cue.text.replace(/\s+/g, " ").trim();
+        const contextEval = addUpcomingSubtitleContext(
+          rollingWindow.evaluate(plainSource), sourceDoc.cues, i
+        );
 
-      const joinedTranslated = translatedTurns.join("\n");
-      const formattedTranslatedText = TextFormatter.formatCueText(joinedTranslated, {
-        maxCpl,
-        lang: targetLang
-      });
+        const formattedNativeText = TextFormatter.formatCueText(cue.text, {
+          maxCpl,
+          lang: detectedLang
+        });
+        nativeCues.push({
+          index: cue.index,
+          identifier: cue.identifier,
+          timing: cue.timing,
+          text: formattedNativeText
+        });
 
-      translatedCues.push({
-        index: cue.index,
-        identifier: cue.identifier,
-        timing: cue.timing,
-        text: formattedTranslatedText
-      });
+        const { turns } = TokenShield.splitDialogueTurns(cue.text);
+        const translatedTurns = [];
 
-      rollingWindow.push(
-        cue.index,
-        plainSource,
-        joinedTranslated.replace(/\s+/g, " ").trim(),
-        contextEval.activeRegister
-      );
+        for (const turn of turns) {
+          const masked = maskTranslationInput(turn, options.glossary || [], targetLang);
+          const rawTarget = await translator.translateSegment(
+            masked.cleanText,
+            detectedLang,
+            targetLang,
+            contextEval
+          );
+          const restored = masked.restore(rawTarget);
+          translatedTurns.push(restored);
+        }
 
-      if (onProgress) {
-        onProgress(Math.round(((i + 1) / total) * 100), i + 1, total);
+        const joinedTranslated = translatedTurns.join("\n");
+        const formattedTranslatedText = TextFormatter.formatCueText(joinedTranslated, {
+          maxCpl,
+          lang: targetLang
+        });
+
+        translatedCues.push({
+          index: cue.index,
+          identifier: cue.identifier,
+          timing: cue.timing,
+          text: formattedTranslatedText
+        });
+
+        rollingWindow.push(
+          cue.index,
+          plainSource,
+          joinedTranslated.replace(/\s+/g, " ").trim(),
+          contextEval.activeRegister
+        );
+
+        if (onProgress) {
+          onProgress(Math.round(((i + 1) / total) * 100), i + 1, total);
+        }
       }
     }
 
@@ -2528,6 +2667,18 @@
     if (typeof translator.resetCircuit === "function") translator.resetCircuit();
     const registerMode = options.registerMode || "auto";
     const context = new RollingContextWindow(5, registerMode);
+    if (translator.provider === "streampl_backend" && typeof translator.translateSegments === "function") {
+      const cues = await translateSubtitleCuesWithBackend(sourceDoc, sourceLang, targetLang, translator, options);
+      const doc = { cues, headerBlocks: sourceDoc.headerBlocks || [], sourceFormat: "vtt" };
+      return {
+        sourceLang,
+        targetLang,
+        doc,
+        vtt: SubtitleParser.serializeWebVTT(doc),
+        cueCount: cues.length,
+        providerUsed: translator.lastUsedProvider || "streampl-backend"
+      };
+    }
     const cues = [];
 
     for (let i = 0; i < sourceDoc.cues.length; i += 1) {
@@ -3339,7 +3490,10 @@
           const sourceHash = hashFingerprint(raw);
           const glossary = normalizeGlossaryEntries(item.glossary || []);
           const glossaryHash = hashFingerprint(JSON.stringify(glossary));
-          const cacheKey = `streampl_generated_${hashFingerprint(`${item.id}|${sourceHash}|${glossaryHash}|${lang}|42|v4`)}`;
+          const providerHash = hashFingerprint(JSON.stringify([
+            appSettings.provider || "auto", appSettings.llmModel || "", appSettings.customEndpoint || ""
+          ]));
+          const cacheKey = `streampl_generated_${hashFingerprint(`${item.id}|${sourceHash}|${glossaryHash}|${providerHash}|${lang}|42|v5`)}`;
           let vtt = null;
           try { vtt = localStorage.getItem(cacheKey); } catch (_error) { /* storage may be unavailable */ }
           let result;
