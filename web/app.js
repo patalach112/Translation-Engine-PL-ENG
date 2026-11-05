@@ -234,7 +234,7 @@
       audioSourceMic: "Microphone / speakers",
       btnStartListening: "Start live captions",
       btnStopListening: "Stop live captions",
-      liveCaptionPrivacy: "For best recognition, share this tab's audio. Microphone mode uses raw audio so playback is not suppressed by echo cancellation; use clear, close speakers. Whisper Base is the balanced default; Small needs more download and memory. Local ASR stays on-device; only transcript text goes to translation. Browser speech mode may send audio to its online service.",
+      liveCaptionPrivacy: "For best recognition, select the language actually being spoken and share this tab's audio. Microphone mode uses raw audio so playback is not suppressed by echo cancellation; use clear, close speakers. Whisper Base is the balanced default; Small needs more download and memory. Local ASR stays on-device; only transcript text goes to translation. Browser speech mode may send audio to its online service.",
       liveCaptionUnsupported: "Live speech recognition is not available in this browser. Try a current version of Chrome or Edge.",
       liveCaptionNetworkError: "The browser speech-recognition service could not be reached. Check your internet connection and try again.",
       liveCaptionAudioError: "No usable audio input was found. Check the shared tab or microphone permission.",
@@ -334,7 +334,7 @@
       audioSourceMic: "Mikrofon / głośniki",
       btnStartListening: "Włącz napisy na żywo",
       btnStopListening: "Zatrzymaj napisy na żywo",
-      liveCaptionPrivacy: "Najlepsze rozpoznawanie daje udostępnienie dźwięku tej karty. Mikrofon używa surowego dźwięku, aby redukcja echa nie wyciszyła odtwarzania; ustaw głośniki blisko i wyraźnie. Whisper Base to zalecany kompromis; Small wymaga więcej pobierania i pamięci. Lokalny ASR działa na urządzeniu, a do tłumaczenia wysyłany jest tylko tekst. Usługa mowy przeglądarki może wysyłać dźwięk online.",
+      liveCaptionPrivacy: "Najlepsze rozpoznawanie zapewnia wybór właściwego języka mówionego i udostępnienie dźwięku tej karty. Mikrofon używa surowego dźwięku, aby redukcja echa nie wyciszyła odtwarzania; ustaw głośniki blisko i wyraźnie. Whisper Base to zalecany kompromis; Small wymaga więcej pobierania i pamięci. Lokalny ASR działa na urządzeniu, a do tłumaczenia wysyłany jest tylko tekst. Usługa mowy przeglądarki może wysyłać dźwięk online.",
       liveCaptionUnsupported: "Rozpoznawanie mowy na żywo nie jest dostępne w tej przeglądarce. Użyj aktualnej wersji Chrome lub Edge.",
       liveCaptionNetworkError: "Nie można połączyć się z usługą rozpoznawania mowy przeglądarki. Sprawdź internet i spróbuj ponownie.",
       liveCaptionAudioError: "Brak działającego źródła dźwięku. Sprawdź udostępnioną kartę lub dostęp do mikrofonu.",
@@ -1774,7 +1774,8 @@
       this.llmModel = (settings.llmModel || "gpt-4o-mini").trim();
       this.onFallback = typeof settings.onFallback === "function" ? settings.onFallback : null;
       this.lastUsedProvider = "offline-smart-dictionary";
-      this.liveHistory = [];
+      this.liveContext = null;
+      this.liveCueIndex = 0;
 
       // Per-batch circuit breakers so rate-limited/offline endpoints fail fast once
       this._circuit = {
@@ -2212,7 +2213,7 @@
     return Array.from(entries.values());
   }
 
-  async function translateLiveTranscript(text, sourceLang, targetLang, translator, glossaryEntries = []) {
+  async function translateLiveTranscript(text, sourceLang, targetLang, translator, glossaryEntries = [], registerMode = "auto") {
     const source = String(sourceLang || "").trim();
     const target = String(targetLang || "").trim();
     if (!SUPPORTED_LANGUAGE_CODES.has(source) || !SUPPORTED_LANGUAGE_CODES.has(target)) {
@@ -2228,19 +2229,17 @@
     const protectedTerms = glossary ? glossary.protect(transcript) : { text: transcript, tokens: [] };
     const shield = TokenShield.mask(protectedTerms.text);
     const engine = translator || new ClientTranslator();
-    if (!Array.isArray(engine.liveHistory)) engine.liveHistory = [];
-    const context = { activeRegister: "default", history: engine.liveHistory.slice(-5) };
+    const mode = registerMode || "auto";
+    if (!(engine.liveContext instanceof RollingContextWindow) || engine.liveContext.mode !== mode) {
+      engine.liveContext = new RollingContextWindow(5, mode);
+    }
+    const context = engine.liveContext.evaluate(transcript);
     const maskedTranslation = await engine.translateSegment(shield.cleanText, source, target, context);
     const restoredTranslation = TokenShield.unmask(maskedTranslation, shield);
     const finalTranslation = glossary ? glossary.restore(restoredTranslation, protectedTerms) : restoredTranslation;
     const formatted = TextFormatter.formatCueText(finalTranslation, { maxCpl: 42, lang: target });
     engine.liveCueIndex = (engine.liveCueIndex || 0) + 1;
-    engine.liveHistory.push({
-      cueIndex: engine.liveCueIndex,
-      sourceText: transcript,
-      translatedText: formatted
-    });
-    if (engine.liveHistory.length > 5) engine.liveHistory.shift();
+    engine.liveContext.push(engine.liveCueIndex, transcript, formatted, context.activeRegister);
     return {
       text: formatted,
       providerUsed: engine.lastUsedProvider || "unknown"
@@ -3017,7 +3016,7 @@
       return new engineApi.LiveCaptionEngine({
         mediaDevices: navigator.mediaDevices,
         translate: async (segment) => translateLiveTranscript(
-          segment.text, segment.sourceLang, segment.targetLang, liveTranslator, liveGlossaryEntries
+          segment.text, segment.sourceLang, segment.targetLang, liveTranslator, liveGlossaryEntries, activeRegister
         ),
         onStatus(event) {
           liveActive = ["starting", "loading-model", "listening", "transcribing", "no-speech"].includes(event.state);

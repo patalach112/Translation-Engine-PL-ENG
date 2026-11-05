@@ -478,6 +478,9 @@
       audioSourceFactory = (options) => new AudioWorkletPcmSource(options),
       chunkSeconds = 8,
       overlapSeconds = 1.2,
+      minChunkSeconds = 3.6,
+      endSilenceSeconds = 0.45,
+      speechRmsThreshold = 0.0012,
       maxBufferedSeconds = 18
     } = {}) {
       this.modelId = modelId;
@@ -486,6 +489,9 @@
       this.audioSourceFactory = audioSourceFactory;
       this.chunkSeconds = chunkSeconds;
       this.overlapSeconds = overlapSeconds;
+      this.minChunkSeconds = minChunkSeconds;
+      this.endSilenceSeconds = endSilenceSeconds;
+      this.speechRmsThreshold = speechRmsThreshold;
       this.maxBufferedSeconds = maxBufferedSeconds;
       this.session = 0;
       this.active = false;
@@ -495,7 +501,11 @@
       this.sourceLang = "ja";
       this.sampleRate = 0;
       this.chunkSamples = 0;
+      this.minChunkSamples = 0;
       this.overlapSamples = 0;
+      this.endSilenceSamples = 0;
+      this.speechSeen = false;
+      this.silenceSamples = 0;
       this.blocks = [];
       this.bufferedSamples = 0;
       this.processing = false;
@@ -516,6 +526,8 @@
       this.callbacks = { onState, onFinal, onError };
       this.blocks = [];
       this.bufferedSamples = 0;
+      this.speechSeen = false;
+      this.silenceSamples = 0;
       this.processing = false;
       this.overlapFilter.reset();
       try {
@@ -527,7 +539,9 @@
         this.sampleRate = await this.audioSource.start();
         if (!this.active || session !== this.session) { await this.audioSource.stop(); return false; }
         this.chunkSamples = Math.round(this.sampleRate * this.chunkSeconds);
-        this.overlapSamples = Math.round(this.sampleRate * this.overlapSeconds);
+        this.minChunkSamples = Math.min(this.chunkSamples, Math.round(this.sampleRate * this.minChunkSeconds));
+        this.overlapSamples = Math.min(this.chunkSamples - 1, Math.round(this.sampleRate * this.overlapSeconds));
+        this.endSilenceSamples = Math.round(this.sampleRate * this.endSilenceSeconds);
         onState("loading-model", { modelId: this.modelId, progress: null });
         const transcriber = await this.pipelineLoader({
           modelId: this.modelId,
@@ -555,6 +569,13 @@
       if (!this.active || session !== this.session) return;
       const samples = value instanceof Float32Array ? value : Float32Array.from(value || []);
       if (!samples.length) return;
+      let squareSum = 0;
+      for (const sample of samples) squareSum += sample * sample;
+      const rms = Math.sqrt(squareSum / samples.length);
+      if (rms >= this.speechRmsThreshold) {
+        this.speechSeen = true;
+        this.silenceSamples = 0;
+      } else if (this.speechSeen) this.silenceSamples += samples.length;
       this.blocks.push({ samples, offset: 0 });
       this.bufferedSamples += samples.length;
       const maximum = Math.max(this.chunkSamples, Math.round(this.sampleRate * this.maxBufferedSeconds));
@@ -592,9 +613,23 @@
     }
 
     async _drain(session) {
-      if (!this.active || session !== this.session || !this.transcriber || this.processing || !this.chunkSamples || this.bufferedSamples < this.chunkSamples) return;
-      const audio = this._read(this.chunkSamples);
-      this._discard(Math.max(1, this.chunkSamples - this.overlapSamples));
+      if (!this.active || session !== this.session || !this.transcriber || this.processing || !this.chunkSamples) return;
+      const readyAtMaxLength = this.bufferedSamples >= this.chunkSamples;
+      const readyAfterSilence = this.speechSeen
+        && this.bufferedSamples >= this.minChunkSamples
+        && this.silenceSamples >= this.endSilenceSamples;
+      if (!readyAtMaxLength && !readyAfterSilence) return;
+      const sampleCount = readyAtMaxLength ? this.chunkSamples : this.bufferedSamples;
+      const audio = this._read(sampleCount);
+      this._discard(Math.max(1, sampleCount - this.overlapSamples));
+      const containsSpeech = this.speechSeen;
+      this.speechSeen = false;
+      this.silenceSamples = 0;
+      if (!containsSpeech) {
+        this.callbacks.onState("no-speech", { input: "local-whisper", reason: "quiet-window" });
+        if (this.bufferedSamples >= this.chunkSamples) this._drain(session);
+        return;
+      }
       this.processing = true;
       this.callbacks.onState("transcribing", { input: "local-whisper", modelId: this.modelId });
       try {

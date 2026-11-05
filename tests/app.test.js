@@ -409,6 +409,21 @@ test("Live speech transcripts translate from Japanese into a selected subtitle l
   await assert.rejects(translateLiveTranscript("hello", "xx", "pl", translator), /Unsupported live caption/);
 });
 
+test("Live translation applies explicit register and infers it from continuing speech", async () => {
+  const contexts = [];
+  const translator = {
+    lastUsedProvider: "register-mock",
+    async translateSegment(text, _source, _target, context) {
+      contexts.push(context);
+      return text;
+    }
+  };
+  await translateLiveTranscript("Sir, would you help me?", "en", "pl", translator, [], "auto");
+  assert.equal(contexts[0].activeRegister, "formal_masc");
+  await translateLiveTranscript("Hello, everyone.", "en", "pl", translator, [], "informal_plural");
+  assert.equal(contexts[1].activeRegister, "informal_plural");
+});
+
 test("OpenAI-compatible translation prompt localizes naturally and includes live context", async () => {
   const originalFetch = global.fetch;
   let requestBody;
@@ -448,13 +463,13 @@ test("Natural live translation preserves platform names and carries recent conve
       return "Widziałem to na ⟦T0⟧.";
     }
   };
-  const first = await translateLiveTranscript("I watched it on YouTube Shorts.", "en", "pl", translator);
+  const first = await translateLiveTranscript("I watched it on youtube shorts.", "en", "pl", translator);
   const second = await translateLiveTranscript("Everyone is sharing it on YouTube Shorts.", "en", "pl", translator);
   assert.equal(first.text, "Widziałem to na YouTube Shorts.");
   assert.equal(second.text, "Widziałem to na YouTube Shorts.");
   assert.equal(calls[0].context.history.length, 0);
   assert.equal(calls[1].context.history.length, 1);
-  assert.equal(calls[1].context.history[0].sourceText, "I watched it on YouTube Shorts.");
+  assert.equal(calls[1].context.history[0].sourceText, "I watched it on youtube shorts.");
 
   const custom = await translateLiveTranscript("YouTube Shorts", "en", "pl", translator, [
     { source: "YouTube Shorts", target: "Shorty YouTube" }
@@ -571,6 +586,46 @@ test("Local Whisper provider loads on-device ASR and emits timestamp-window tran
   assert.equal(transcripts[0].text, "こんにちは世界");
   assert.equal(transcripts[1].text, "今日はいい天気です");
   assert.ok(states.includes("transcribing"));
+  await provider.stop();
+});
+
+test("Whisper uses trailing silence to flush phrases and skips silent windows", async () => {
+  let source;
+  let inferenceCount = 0;
+  const transcripts = [];
+  const states = [];
+  const provider = new LocalWhisperSpeechProvider({
+    modelId: "test/voice-activity",
+    pipelineLoader: async () => async () => {
+      inferenceCount += 1;
+      return { text: "recognized phrase" };
+    },
+    audioSourceFactory: ({ onSamples }) => {
+      source = { start: async () => 16000, stop: async () => {}, emit: onSamples };
+      return source;
+    },
+    chunkSeconds: 2,
+    overlapSeconds: 0.2,
+    minChunkSeconds: 0.8,
+    endSilenceSeconds: 0.25,
+    speechRmsThreshold: 0.01
+  });
+  await provider.start({
+    sourceLang: "en",
+    stream: {},
+    onState: (state) => states.push(state),
+    onFinal: (segment) => transcripts.push(segment),
+    onError: (error) => assert.fail(error.code || "unexpected local ASR error")
+  });
+  source.emit(new Float32Array(32000));
+  assert.equal(inferenceCount, 0, "silence should not trigger Whisper inference");
+  assert.ok(states.includes("no-speech"), "quiet windows should be reported to the UI");
+  source.emit(new Float32Array(9600).fill(0.08));
+  assert.equal(inferenceCount, 0, "phrase waits for a pause or maximum chunk length");
+  source.emit(new Float32Array(4000));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(inferenceCount, 1);
+  assert.equal(transcripts[0].text, "recognized phrase");
   await provider.stop();
 });
 
