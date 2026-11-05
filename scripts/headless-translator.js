@@ -19,6 +19,7 @@ const {
   ClientTranslator,
   RollingContextWindow,
   maskTranslationInput,
+  normalizeGlossaryEntries,
   PolishRegisterHarmonizer,
   SUPPORTED_LANGUAGES
 } = require("../web/app.js");
@@ -27,7 +28,7 @@ const ROOT = path.resolve(__dirname, "..");
 const LANGUAGES = SUPPORTED_LANGUAGES.map(language => language.code);
 const SUBTITLE_EXTENSIONS = new Set([".srt", ".vtt", ".ass", ".ssa"]);
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm"]);
-const BUILD_VERSION = "5";
+const BUILD_VERSION = "6";
 
 function parseArgs(argv) {
   const options = { input: "assets/raw", output: "web/data/tracks", catalog: "web/data/catalog.json", offline: false };
@@ -178,11 +179,11 @@ async function translateMyMemory(text, source, target) {
   return translated;
 }
 
-async function translateCue(text, source, target, offlineTranslator, offline, failedPairs) {
+async function translateCue(text, source, target, offlineTranslator, offline, failedPairs, glossaryEntries = []) {
   const { turns } = TokenShield.splitDialogueTurns(text);
   const translatedTurns = [];
   for (const turn of turns) {
-    const masked = maskTranslationInput(turn);
+    const masked = maskTranslationInput(turn, glossaryEntries, target);
     let translated;
     if (source === target) translated = masked.cleanText;
     else if (offline) translated = offlineTranslator.translateOffline(masked.cleanText, source, target, "auto");
@@ -208,12 +209,12 @@ async function translateCue(text, source, target, offlineTranslator, offline, fa
   return translatedTurns.join("\n");
 }
 
-async function createTrack(doc, sourceLang, targetLang, offlineTranslator, offline, failedPairs) {
+async function createTrack(doc, sourceLang, targetLang, offlineTranslator, offline, failedPairs, glossaryEntries = []) {
   const cues = [];
   const context = new RollingContextWindow(5, "auto");
   for (const cue of doc.cues) {
     const contextEval = context.evaluate(cue.text);
-    let translated = await translateCue(cue.text, sourceLang, targetLang, offlineTranslator, offline, failedPairs);
+    let translated = await translateCue(cue.text, sourceLang, targetLang, offlineTranslator, offline, failedPairs, glossaryEntries);
     if (targetLang === "pl") translated = PolishRegisterHarmonizer.harmonize(translated, contextEval.activeRegister);
     const formatted = TextFormatter.formatCueText(translated, { maxCpl: 42, lang: targetLang });
     cues.push({ ...cue, text: formatted });
@@ -277,6 +278,8 @@ async function run(options) {
     const existing = byId.get(id) || {};
     const videoMetadata = video ? await readSidecar(video) : {};
     const metadataMerged = { ...videoMetadata, ...metadata };
+    const glossaryEntries = normalizeGlossaryEntries(metadataMerged.glossary || []);
+    const glossaryHash = crypto.createHash("sha256").update(stableStringify(glossaryEntries)).digest("hex");
     const expectedTracks = Object.fromEntries(LANGUAGES.map(target => [
       target,
       relativeWebPath(path.join(outputDir, `${id}_${target}.vtt`), webRoot)
@@ -285,6 +288,7 @@ async function run(options) {
     const translationMode = options.offline ? "offline" : "public-auto";
     const reusable = existing.sourceHash === sourceHash &&
       existing.sourceLanguage === sourceLang &&
+      existing.glossaryHash === glossaryHash &&
       existing.trackBuildVersion === BUILD_VERSION &&
       existing.translationMode === translationMode &&
       LANGUAGES.every(target => existing.tracks?.[target] === expectedTracks[target]);
@@ -299,7 +303,7 @@ async function run(options) {
     if (!tracksExist) {
       for (const target of LANGUAGES) {
         const targetFile = path.join(outputDir, `${id}_${target}.vtt`);
-        const vtt = await createTrack(doc, sourceLang, target, offlineTranslator, options.offline, failedPairs);
+        const vtt = await createTrack(doc, sourceLang, target, offlineTranslator, options.offline, failedPairs, glossaryEntries);
         await fs.writeFile(targetFile, vtt, "utf8");
       }
     }
@@ -317,6 +321,8 @@ async function run(options) {
       sourceSubtitle: relativeWebPath(sourceCopyPath, webRoot),
       sourceLanguage: sourceLang,
       sourceHash,
+      glossary: glossaryEntries,
+      glossaryHash,
       trackBuildVersion: BUILD_VERSION,
       translationMode,
       tracks: expectedTracks

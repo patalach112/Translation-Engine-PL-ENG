@@ -40,12 +40,18 @@ player.configure({
     { language: "en", label: "English", src: "/captions/episode-01.en.vtt" }
   ],
   targetLanguages: ["pl", "de", "fr"],
+  glossary: [
+    { source: "Mooncake Project", target: { de: "Mondkuchen-Initiative", pl: "Projekt Mooncake" } },
+    { source: "the red door", target: "the safe house" }
+  ],
   videoOptions: { controls: true, playsInline: true, preload: "metadata", playbackRate: 1 },
   engineOptions: { provider: "google_gtx" }
 });
 player.addEventListener("streampl-translated", (event) => console.log(event.detail));
 player.addEventListener("streampl-error", (event) => console.error(event.detail));
 ```
+
+A glossary pair is `{ source, target }` and is protected from provider edits, then restored exactly; `target` may be one preferred phrase or a language-code map such as `{ pl: "Projekt", de: "Projekt" }`. This covers product names, project terminology, and known non-literal equivalents. The same `glossary` array can be placed in a media metadata sidecar for generated tracks; language-specific targets are selected for each generated locale. Browser subtitle requests make the previous five and next two source cues available as context to OpenAI-compatible and DeepL providers, while translating only the active cue. OpenAI-compatible providers also receive explicit instructions for idiomatic localization. Glossary changes invalidate cached translations.
 
 The element exposes its underlying media node as `player.videoElement` and emits `streampl-languagechange`, `streampl-translated`, and `streampl-error` events. It can be styled through the `streampl-player` host or its `::part(video)` and `::part(toolbar)` hooks. The standalone embed needs no bundler, npm package, backend, or framework. It relies on `app.js` as the shared translation core; loading it on another site does not initialize the demo UI unless that page contains the demo's `#video-player` element.
 
@@ -70,7 +76,7 @@ node scripts/headless-translator.js --input assets/raw --output web/data/tracks 
 
 The script scans the raw media directory and generates a track for each of 28 configured world-language locales: English, Polish, Spanish, Japanese, Simplified Chinese, German, French, Arabic, Hindi, Portuguese, Russian, Bengali, Indonesian, Urdu, Turkish, Italian, Korean, Vietnamese, Persian, Swahili, Dutch, Thai, Malay, Ukrainian, Tamil, Marathi, Punjabi, and Filipino. It updates the JSON catalog, then the workflow commits generated tracks and catalog changes back to the triggering branch. Public Google GTX translation is best-effort with bounded retries; if an endpoint fails, a cue is retained safely rather than dropping timing or formatting. `--offline` makes a deterministic no-network build using the EN/PL dictionary plus bundled demo phrase memory for German, Japanese, Simplified Chinese, Spanish, and French; other unsupported text/locales remain source text in offline mode. For broad real-world coverage, the normal workflow tries Google GTX and then MyMemory for each locale. Catalog items built with `--offline` can also translate selected tracks on demand in the browser using those endpoints, with successful results cached locally. The source subtitle is copied into `web/data/sources/` so this works from static hosting.
 
-Optional metadata can be placed next to the corresponding video or subtitle as `episode-01.json` (or `episode-01.mp4.json`). Fields such as `id`, `title` (string or `{ "en", "pl" }`), `description`, `aspect`, `duration`, and `sourceLanguage` are merged into the catalog. The builder detects common writing systems and languages automatically; set `sourceLanguage` (for example `de`, `zh-CN`, or `ja`) for short or ambiguous Latin-script captions. Subtitle and video paths remain relative to the `web/` directory, making them usable by GitHub Pages and other static hosts.
+Optional metadata can be placed next to the corresponding video or subtitle as `episode-01.json` (or `episode-01.mp4.json`). Fields such as `id`, `title` (string or `{ "en", "pl" }`), `description`, `aspect`, `duration`, `sourceLanguage`, and `glossary` are merged into the catalog. A glossary is an array of `{ "source": "preferred source spelling", "target": "required target wording" }` entries; `target` may be a string shared across locales or an object keyed by language codes, and is applied to generated tracks where a locale-specific value exists. The builder detects common writing systems and languages automatically; set `sourceLanguage` (for example `de`, `zh-CN`, or `ja`) for short or ambiguous Latin-script captions. Subtitle and video paths remain relative to the `web/` directory, making them usable by GitHub Pages and other static hosts.
 
 ### Catalog-driven public playlist
 

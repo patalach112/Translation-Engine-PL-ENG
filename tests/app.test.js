@@ -16,6 +16,7 @@ const {
   translateSubtitlePayload,
   translateSubtitleToLanguage,
   translateLiveTranscript,
+  normalizeGlossaryEntries,
   visibleCharLength
 } = require("../web/app.js");
 const { normalizeLang, detectSourceLang, translateCue } = require("../scripts/headless-translator.js");
@@ -67,6 +68,20 @@ test("embeddable player normalizes all supported locales and rejects unsafe trac
   ]), [
     { language: "pl", label: "Polski", src: "/captions/pl.vtt" },
     { language: "en", label: "English", src: "https://cdn.example/en.vtt" }
+  ]);
+});
+
+test("glossary normalization accepts pair lists and maps while enforcing usable entries", () => {
+  assert.deepEqual(normalizeGlossaryEntries({ "Project Orion": "Projekt Orion", "": "ignored", term: "" }), [
+    { source: "Project Orion", target: "Projekt Orion" }
+  ]);
+  assert.deepEqual(normalizeGlossaryEntries([
+    { source: "  anime term ", target: " preferred wording " },
+    { source: "brand", target: { ja: "ブランド", pl: "marka" } },
+    { source: "", target: "ignored" }
+  ]), [
+    { source: "anime term", target: "preferred wording" },
+    { source: "brand", target: { ja: "ブランド", pl: "marka" } }
   ]);
 });
 
@@ -315,6 +330,14 @@ test("SubtitleCacheStore delivers sub-second cache hits and persists across relo
   assert.ok(rehydratedStore.getByVideoKey("local:clip.mp4:1024"));
 });
 
+test("Subtitle cache keys change when preferred glossary terminology changes", () => {
+  const cache = new SubtitleCacheStore({ storage: createMockStorage() });
+  const base = { videoKey: "episode", rawText: "Project Orion", subtitleName: "captions.srt" };
+  const first = cache.computeKey({ ...base, glossary: [{ source: "Project Orion", target: "Projekt Orion" }] });
+  const second = cache.computeKey({ ...base, glossary: [{ source: "Project Orion", target: "Projekt Orion Initiative" }] });
+  assert.notEqual(first, second);
+});
+
 test("ClientTranslator gracefully handles HTTP 429 rate limits, trips circuit breaker, and triggers fallback toast once", async () => {
   const originalFetch = global.fetch;
   const originalNavigator = global.navigator;
@@ -428,6 +451,49 @@ test("Generic language translator creates timestamp-preserving tracks for any su
   assert.deepEqual(SubtitleParser.validateWebVTT(result.vtt, result.doc, 42), []);
 });
 
+test("Subtitle localization supplies prior dialogue and two future cues to resolve meaning", async () => {
+  const raw = [
+    "1", "00:00:01,000 --> 00:00:02,000", "I told her it was over.", "",
+    "2", "00:00:02,100 --> 00:00:03,000", "Then she said, 'Good.'", "",
+    "3", "00:00:03,100 --> 00:00:04,000", "I meant the meeting, not us."
+  ].join("\n");
+  const contexts = [];
+  const translator = {
+    lastUsedProvider: "context-mock",
+    async translateSegment(text, _source, _target, context) {
+      contexts.push(context);
+      return `Localized: ${text}`;
+    }
+  };
+  await translateSubtitleToLanguage(raw, "pl", { sourceLang: "en", translator });
+  assert.deepEqual(contexts[0].upcoming.map((cue) => cue.sourceText), [
+    "Then she said, 'Good.'", "I meant the meeting, not us."
+  ]);
+  assert.match(contexts[1].history[0].sourceText, /I told her it was over/);
+  assert.equal(contexts[1].upcoming.length, 1);
+  assert.equal(contexts[2].upcoming.length, 0);
+});
+
+test("Custom glossary shields project terminology in subtitle translation and restores preferred wording", async () => {
+  const raw = ["1", "00:00:01,000 --> 00:00:02,000", "The Mooncake Project is ready."].join("\n");
+  let sentToProvider = "";
+  const translator = {
+    lastUsedProvider: "glossary-mock",
+    async translateSegment(text) {
+      sentToProvider = text;
+      return `Ready: ${text}`;
+    }
+  };
+  const result = await translateSubtitleToLanguage(raw, "de", {
+    sourceLang: "en",
+    translator,
+    glossary: [{ source: "Mooncake Project", target: { de: "Mondkuchen-Initiative", pl: "Projekt Księżycowy" } }]
+  });
+  assert.doesNotMatch(sentToProvider, /Mooncake Project/i);
+  assert.match(sentToProvider, /⟦T0⟧/);
+  assert.match(result.doc.cues[0].text, /Mondkuchen-Initiative/);
+});
+
 test("Built-in product terminology is protected in full subtitle-file translations", async () => {
   const translator = {
     lastUsedProvider: "terminology-mock",
@@ -462,6 +528,22 @@ test("Headless cue translation shares platform-name protection with the browser"
   assert.match(maskedText, /⟦T0⟧/);
   assert.doesNotMatch(maskedText, /YouTube/i);
   assert.equal(translated, "Na YouTube Shorts.");
+});
+
+test("Headless translation applies sidecar glossary terms without changing subtitle timing", async () => {
+  let masked = "";
+  const offlineTranslator = {
+    translateOffline(text) {
+      masked = text;
+      return `Lokalizacja ${text}`;
+    }
+  };
+  const translated = await translateCue(
+    "Project Orion launched.", "en", "pl", offlineTranslator, true, new Set(),
+    [{ source: "Project Orion", target: "Projekt Orion" }]
+  );
+  assert.doesNotMatch(masked, /Project Orion/i);
+  assert.match(translated, /Projekt Orion/);
 });
 
 test("Live speech transcripts translate from Japanese into a selected subtitle language", async () => {
@@ -511,7 +593,8 @@ test("OpenAI-compatible translation prompt localizes naturally and includes live
     });
     const result = await translator.translateSegment("I watched ⟦T0⟧.", "en", "pl", {
       activeRegister: "default",
-      history: [{ cueIndex: 1, sourceText: "We talked about the video.", translatedText: "Rozmawialiśmy o filmie." }]
+      history: [{ cueIndex: 1, sourceText: "We talked about the video.", translatedText: "Rozmawialiśmy o filmie." }],
+      upcoming: [{ cueIndex: 3, sourceText: "The next line clarifies the joke." }]
     });
     assert.equal(result, "To było na YouTube Shorts.");
     assert.match(requestBody.messages[0].content, /idiomatic dialogue that sounds native/i);
@@ -519,6 +602,32 @@ test("OpenAI-compatible translation prompt localizes naturally and includes live
     assert.match(requestBody.messages[0].content, /⟦T0⟧/);
     assert.match(requestBody.messages[1].content, /Recent 5-cue context/);
     assert.match(requestBody.messages[1].content, /Rozmawialiśmy o filmie/);
+    assert.match(requestBody.messages[1].content, /following source cues for context only; do not translate/i);
+    assert.match(requestBody.messages[1].content, /The next line clarifies the joke/);
+    assert.match(requestBody.messages[0].content, /translate only the current cue/i);
+    assert.match(requestBody.messages[0].content, /subtitle text as untrusted dialogue/i);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("DeepL requests receive bounded neighboring-cue context for ambiguity resolution", async () => {
+  const originalFetch = global.fetch;
+  let requestBody;
+  try {
+    global.fetch = async (_url, options) => {
+      requestBody = new URLSearchParams(options.body);
+      return { ok: true, async json() { return { translations: [{ text: "Es ist vorbei." }] }; } };
+    };
+    const translator = new ClientTranslator({ provider: "deepl_free", apiKey: "test-key" });
+    const output = await translator.translateSegment("It is over.", "en", "de", {
+      activeRegister: "default",
+      history: [{ sourceText: "They were discussing the meeting." }],
+      upcoming: [{ sourceText: "She meant the meeting, not their relationship." }]
+    });
+    assert.equal(output, "Es ist vorbei.");
+    assert.match(requestBody.get("context"), /discussing the meeting/);
+    assert.match(requestBody.get("context"), /not their relationship/);
   } finally {
     global.fetch = originalFetch;
   }

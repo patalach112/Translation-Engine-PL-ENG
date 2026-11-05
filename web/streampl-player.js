@@ -190,6 +190,7 @@
             filename: this._source.src.split("/").pop().split(/[?#]/)[0] || "subtitles.vtt",
             sourceLang: this._source.language,
             settings: this._config.engineOptions || {},
+            glossary: this._config.glossary || [],
             onProgress: (percent) => this._setStatus(`Translating captions… ${percent}%`)
           });
           this._attachGeneratedTrack(selected, result.vtt);
