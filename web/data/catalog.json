@@ -46,10 +46,12 @@
         "pa": "data/tracks/interview_pa.vtt",
         "tl": "data/tracks/interview_tl.vtt"
       },
-      "updatedAt": "2026-11-05T15:48:55.609Z",
+      "updatedAt": "2026-11-05T20:08:14.081Z",
       "sourceHash": "74140323425a370fbe0932e06672bc0ee2acff2da5b8cb9f6720a055c21cb4c4",
-      "trackBuildVersion": "5",
-      "translationMode": "public-auto"
+      "trackBuildVersion": "6",
+      "translationMode": "public-auto",
+      "glossary": [],
+      "glossaryHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "keynote",
@@ -96,10 +98,12 @@
         "pa": "data/tracks/keynote_pa.vtt",
         "tl": "data/tracks/keynote_tl.vtt"
       },
-      "updatedAt": "2026-11-05T15:53:35.888Z",
+      "updatedAt": "2026-11-05T20:12:11.647Z",
       "sourceHash": "06e1ecf73d6d2a2774000938228b647f08a6ea9ac1c1aadae07b2d6a8933ce15",
-      "trackBuildVersion": "5",
-      "translationMode": "public-auto"
+      "trackBuildVersion": "6",
+      "translationMode": "public-auto",
+      "glossary": [],
+      "glossaryHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "vertical-short",
@@ -146,11 +150,13 @@
         "pa": "data/tracks/vertical-short_pa.vtt",
         "tl": "data/tracks/vertical-short_tl.vtt"
       },
-      "updatedAt": "2026-11-05T15:55:12.396Z",
+      "updatedAt": "2026-11-05T20:13:34.547Z",
       "sourceHash": "27ad8d4366aa23a60c15560867f93f442ddcf9ac27790cc6ecf1cbb3b7b8ec99",
-      "trackBuildVersion": "5",
-      "translationMode": "public-auto"
+      "trackBuildVersion": "6",
+      "translationMode": "public-auto",
+      "glossary": [],
+      "glossaryHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   ],
-  "generatedAt": "2026-11-05T15:55:12.396Z"
+  "generatedAt": "2026-11-05T20:13:34.547Z"
 }
