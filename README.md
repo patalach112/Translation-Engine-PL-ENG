@@ -10,7 +10,7 @@ A **client-side Vanilla JavaScript (ES6+), HTML5, and CSS** video hub and subtit
 
 ### Live speech-to-caption architecture
 
-The zero-dependency `web/live-caption-engine.js` module separates `AudioCaptureAdapter`, `BrowserSpeechRecognitionProvider`, `LocalWhisperSpeechProvider`, `LiveCaptionEngine`, `SerialTranslationQueue`, `GlossaryLexicon`, `TranscriptOverlapFilter`, and `CaptionOverlayRenderer`. Local capture batches PCM frames in the AudioWorklet to reduce message/garbage-collection overhead, converts to 16 kHz, removes DC offset, gently levels quiet input, and transcribes overlapping windows up to eight seconds, flushing at speech pauses and skipping quiet-only windows to improve phrase boundaries and reduce wasted inference. Whisper Base is the balanced default; Tiny is lighter, while Small is an optional higher-resource choice. Two-beam decoding favors recognition quality over minimum latency; WebGPU is attempted first, with WASM fallback. For best results, share the tab's audio; microphone capture intentionally disables echo/noise suppression so it does not mistake playback for echo. The same built-in product-name protection is used in the browser and Node headless builds (including **YouTube Shorts**); live translation also carries the last five lines as context when using an OpenAI-compatible translator. Its pinned Transformers.js runtime and pretrained ONNX Whisper weights download on demand; no model binaries or backend are added. These are pretrained models, not trained by this repository. Actual browser downloads/device performance depend on the user's browser, hardware, and network. Translation uses the configured client-side provider and may need internet access.
+Live captions are composed from small browser-side modules rather than one all-in-one engine: `audio-signal-processor.js` handles PCM preparation, `local-whisper-provider.js` owns local model inference and speech-aware chunking, and `live-caption-engine.js` orchestrates capture, providers, cancellation, serial translation, and rendering. See the [architecture notes](docs/architecture.md) for their contracts and lifecycle. AudioWorklet frames are batched to limit message/GC overhead; quiet windows are skipped, phrases flush at pauses, and audio is converted to 16 kHz and gently leveled. Whisper Base is the balanced default; Tiny is lighter, while Small is a higher-resource choice. Two-beam decoding favors recognition quality over minimum latency; WebGPU is attempted first, with WASM fallback. For best results, share the tab's audio; microphone capture intentionally disables echo/noise suppression so it does not mistake playback for echo. Built-in product-name protection (including **YouTube Shorts**) is shared across browser, live, and Node headless translations. Live translation carries recent lines and register when using an OpenAI-compatible translator. The pinned Transformers.js runtime and pretrained ONNX Whisper weights download on demand; no model binaries or backend are added. These are pretrained models, not trained by this repository. Actual browser downloads/device performance depend on the user's browser, hardware, and network. Translation uses the configured client-side provider and may need internet access.
 
 ## Autonomous Content Pipeline
 
@@ -64,10 +64,14 @@ assets/raw/                        # Incoming video/subtitle content
 scripts/headless-translator.js     # Zero-dependency headless Node translation/build
 web/
   index.html                       # Public Video Hub and hidden Creator Studio
-  app.js                           # Subtitle/localization engine and viewer UI
-  live-caption-engine.js           # Audio capture, ASR adapters, glossary, ordered translation queue
-  live-audio-worklet.js            # PCM frames for local Whisper inference
+  app.js                           # Viewer/UI composition and subtitle localization flows
+  audio-signal-processor.js        # Pure PCM resampling, conditioning, and audio helpers
+  local-whisper-provider.js        # Whisper runtime/cache, worklet capture, VAD, and ASR windows
+  live-caption-engine.js           # Capture adapters, provider lifecycle, queue, glossary, renderer
+  live-audio-worklet.js            # Batched mono PCM transfer from AudioWorklet thread
   styles.css                       # Responsive dark/light UI
+docs/
+  architecture.md                  # Module boundaries, lifecycle, contracts, and privacy
   data/catalog.json                # CMS-ready dynamic media manifest
   data/tracks/                     # Generated multilingual WebVTT assets
 assets/subtitles/                  # Reference input/output examples

@@ -19,6 +19,8 @@ const {
   visibleCharLength
 } = require("../web/app.js");
 const { normalizeLang, detectSourceLang, translateCue } = require("../scripts/headless-translator.js");
+const audioSignalProcessor = require("../web/audio-signal-processor.js");
+const localWhisperProviderModule = require("../web/local-whisper-provider.js");
 const {
   LiveCaptionEngine,
   CaptionOverlayRenderer,
@@ -50,6 +52,13 @@ class FakeSpeechRecognition {
     });
   }
 }
+
+test("live caption facade re-exports the focused signal and local ASR modules", () => {
+  assert.equal(resampleAudioLinear, audioSignalProcessor.resampleAudioLinear);
+  assert.equal(conditionWhisperAudio, audioSignalProcessor.conditionWhisperAudio);
+  assert.equal(LocalWhisperSpeechProvider, localWhisperProviderModule.LocalWhisperSpeechProvider);
+  assert.equal(TranscriptOverlapFilter, localWhisperProviderModule.TranscriptOverlapFilter);
+});
 
 function createMockStorage() {
   const map = new Map();
@@ -367,6 +376,13 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /value="onnx-community\/whisper-small"/);
   assert.match(html, /\.ass,\.ssa/);
   assert.match(html, /live-caption-engine\.js" defer/);
+  const signalScript = html.indexOf('./audio-signal-processor.js');
+  const whisperScript = html.indexOf('./local-whisper-provider.js');
+  const engineScript = html.indexOf('./live-caption-engine.js');
+  const appScript = html.indexOf('./app.js');
+  assert.ok(signalScript >= 0 && signalScript < whisperScript && whisperScript < engineScript && engineScript < appScript);
+  assert.ok(fs.existsSync(path.join(__dirname, "../web/audio-signal-processor.js")));
+  assert.ok(fs.existsSync(path.join(__dirname, "../web/local-whisper-provider.js")));
   assert.ok(fs.existsSync(path.join(__dirname, "../web/live-audio-worklet.js")));
 });
 
