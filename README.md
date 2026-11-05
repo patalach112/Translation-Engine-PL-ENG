@@ -1,6 +1,6 @@
-# StreamPL — Client-Side EN ⇄ PL Video Hub & Subtitle Studio
+# StreamPL — Browser Video Localization Engine
 
-A **client-side Vanilla JavaScript (ES6+), HTML5, and CSS** video hub and subtitle localization engine. The viewer needs no backend or build step; optional GitHub Actions workflows perform headless track generation and publish the static site. No npm install is required. The optional Local Whisper mode loads a pinned browser inference runtime and quantized model on demand; it does not add a server or build dependency.
+A **client-side, framework-free JavaScript engine** for subtitle localization and live video captions, with an embeddable native-player component and an optional demo/creator studio. Integrate the engine into an existing video site or publish the included static demo; neither use requires a backend or build step. Optional GitHub Actions workflows generate headless subtitle tracks. No npm install is required. Local Whisper downloads a pinned browser inference runtime and quantized model on demand, without adding a server or build dependency.
 
 ## Quick Start
 
@@ -11,6 +11,45 @@ A **client-side Vanilla JavaScript (ES6+), HTML5, and CSS** video hub and subtit
 ### Live speech-to-caption architecture
 
 Live captions are composed from small browser-side modules rather than one all-in-one engine: `audio-signal-processor.js` handles PCM preparation, `local-whisper-provider.js` owns local model inference and speech-aware chunking, and `live-caption-engine.js` orchestrates capture, providers, cancellation, serial translation, and rendering. See the [architecture notes](docs/architecture.md) for their contracts and lifecycle. AudioWorklet frames are batched to limit message/GC overhead; quiet windows are skipped, phrases flush at pauses, and audio is converted to 16 kHz and gently leveled. Whisper Base is the balanced default; Tiny is lighter, while Small is a higher-resource choice. Two-beam decoding favors recognition quality over minimum latency; WebGPU is attempted first, with WASM fallback. For best results, share the tab's audio; microphone capture intentionally disables echo/noise suppression so it does not mistake playback for echo. Built-in product-name protection (including **YouTube Shorts**) is shared across browser, live, and Node headless translations. Live translation carries recent lines and register when using an OpenAI-compatible translator. The pinned Transformers.js runtime and pretrained ONNX Whisper weights download on demand; no model binaries or backend are added. These are pretrained models, not trained by this repository. Actual browser downloads/device performance depend on the user's browser, hardware, and network. Translation uses the configured client-side provider and may need internet access.
+
+## Embed the localization engine in your own site
+
+The project includes a dependency-free `<streampl-player>` web component for sites that already host their own video. It is an integration surface, not a hosted player service: keep your existing site and media hosting, then add the two scripts and the component where your video belongs. It uses the browser's native video controls (play/pause, seek, volume, fullscreen, and picture-in-picture where supported), adds a subtitle language picker, and can translate a hosted SRT/VTT source track on demand into any of the 28 configured locales while preserving cue timing.
+
+```html
+<script defer src="https://YOUR-HOST/translation-engine/web/app.js"></script>
+<script defer src="https://YOUR-HOST/translation-engine/web/streampl-player.js"></script>
+
+<streampl-player
+  src="/media/episode-01.mp4"
+  poster="/media/episode-01.jpg"
+  title="Episode 1"
+  source-language="ja"
+  source-subtitles="/captions/episode-01.ja.vtt"
+  target-languages="en,pl,de,fr,es,zh-CN"
+></streampl-player>
+```
+
+`source-subtitles` must be a readable SRT or WebVTT file. Same-origin files work directly; cross-origin caption and track hosts must allow CORS. If `target-languages` is omitted, the picker offers every supported locale except the source language. Existing tracks can be supplied declaratively as JSON in a `tracks` attribute, or configured with JavaScript:
+
+```js
+const player = document.querySelector("streampl-player");
+player.configure({
+  tracks: [
+    { language: "ja", label: "日本語", src: "/captions/episode-01.ja.vtt" },
+    { language: "en", label: "English", src: "/captions/episode-01.en.vtt" }
+  ],
+  targetLanguages: ["pl", "de", "fr"],
+  videoOptions: { controls: true, playsInline: true, preload: "metadata", playbackRate: 1 },
+  engineOptions: { provider: "google_gtx" }
+});
+player.addEventListener("streampl-translated", (event) => console.log(event.detail));
+player.addEventListener("streampl-error", (event) => console.error(event.detail));
+```
+
+The element exposes its underlying media node as `player.videoElement` and emits `streampl-languagechange`, `streampl-translated`, and `streampl-error` events. It can be styled through the `streampl-player` host or its `::part(video)` and `::part(toolbar)` hooks. The standalone embed needs no bundler, npm package, backend, or framework. It relies on `app.js` as the shared translation core; loading it on another site does not initialize the demo UI unless that page contains the demo's `#video-player` element.
+
+Translation quality and available idiom/context handling depend on the selected provider. OpenAI-compatible providers receive explicit localization guidance to preserve intent, voice, humor, register, and idiomatic meaning across language pairs; standard translation APIs are used as configured and do not receive that same prompt. Browser-only API keys are visible to visitors, so do not embed private provider credentials in public pages—use a restricted key or a secure provider endpoint if credentials are required. The engine cannot promise perfect interpretation for every phrase; review important legal, medical, or commercial subtitles.
 
 ## Autonomous Content Pipeline
 
@@ -67,8 +106,9 @@ web/
   app.js                           # Viewer/UI composition and subtitle localization flows
   audio-signal-processor.js        # Pure PCM resampling, conditioning, and audio helpers
   local-whisper-provider.js        # Whisper runtime/cache, worklet capture, VAD, and ASR windows
-  live-caption-engine.js           # Capture adapters, provider lifecycle, queue, glossary, renderer
-  live-audio-worklet.js            # Batched mono PCM transfer from AudioWorklet thread
+  live-caption-engine.js          # Capture adapters, provider lifecycle, queue, glossary, renderer
+  streampl-player.js              # Framework-free embeddable player/custom element SDK
+  live-audio-worklet.js           # Batched mono PCM transfer from AudioWorklet thread
   styles.css                       # Responsive dark/light UI
 docs/
   architecture.md                  # Module boundaries, lifecycle, contracts, and privacy

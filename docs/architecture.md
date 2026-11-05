@@ -22,7 +22,7 @@ flowchart LR
   Renderer --> UI
 ```
 
-The application controller composes the modules and owns DOM, preferences, and toasts. The engine modules do not query application UI elements. Providers report events through callbacks; the engine owns session cancellation and ordered translation work.
+The application controller composes the modules and owns demo-page DOM, preferences, and toasts. The engine modules do not query application UI elements. Providers report events through callbacks; the engine owns session cancellation and ordered translation work. `web/streampl-player.js` is a separate, dependency-free web component for publisher sites; it wraps a native `<video>`, loads supplied subtitle tracks, and delegates on-demand subtitle localization to the shared `SubtitleEngine` API. It does not require the demo page's markup.
 
 ## Module responsibilities
 
@@ -32,10 +32,11 @@ The application controller composes the modules and owns DOM, preferences, and t
 | `web/live-audio-worklet.js` | Downmixes and batches PCM on the audio thread, then transfers buffers | Network, translation, app state |
 | `web/local-whisper-provider.js` | On-demand runtime/model cache, AudioWorklet source, voice-activity windows, overlap filtering, Whisper invocation | Subtitle UI, translation-provider policy |
 | `web/live-caption-engine.js` | Capture adapter, browser speech adapter, provider selection, state/session epochs, translation queue, glossary primitive, caption renderer | App markup, persistent UI settings |
-| `web/app.js` | UI composition, subtitle parsing, translation policy, localization, persistence, track selection | Audio processing internals |
+| `web/app.js` | Shared subtitle parsing, translation policy, localization, persistence, demo UI composition | Audio processing internals |
+| `web/streampl-player.js` | Framework-free embeddable player component, language menu, native-video integration, generated tracks | Media hosting, ASR, translation-provider implementation |
 | `scripts/headless-translator.js` | CI/static-track build using shared parsing, formatting, term protection, and Node APIs | Browser runtime or deployed server |
 
-The local Whisper module requires the pure signal module. The engine receives both as explicit dependencies and re-exports their public APIs for existing callers. In a browser the globals are loaded in this order: audio signal processor, local Whisper provider, live caption engine, then app. In Node, CommonJS `require` resolves the same dependency chain.
+The local Whisper module requires the pure signal module. The engine receives both as explicit dependencies and re-exports their public APIs for existing callers. In the demo browser app the globals are loaded in this order: audio signal processor, local Whisper provider, live caption engine, app, then the optional embed component. Publisher pages load `app.js` followed by `streampl-player.js`; `app.js` exports `window.SubtitleEngine` and safely skips demo initialization when `#video-player` is absent. In Node, CommonJS `require` resolves the audio module dependency chain.
 
 ## Data and event contracts
 
@@ -73,7 +74,7 @@ The default model is Whisper Base. Tiny is available for lower-resource devices 
 
 All browser translation paths run text through `maskTranslationInput()` before calling a provider and restore it afterward. This preserves formatting tokens and known platform/product terms such as **YouTube Shorts**. User glossary terms take precedence in live captions. The same helper is used by the headless build, avoiding different terminology behavior between generated tracks and the viewer.
 
-`RollingContextWindow` holds the last five live lines and register signals. OpenAI-compatible translation receives that context plus an instruction to localize meaning and idioms rather than translate word-for-word. Other configured translation services receive the full current utterance and protected terms but may not accept conversation history. The selected translation provider may send transcript text to its service; local Whisper audio itself stays in the browser.
+`RollingContextWindow` holds the last five live lines and register signals. OpenAI-compatible translation receives that context plus target-language-neutral localization instructions: preserve intent, subtext, voice, humor, register, and factual meaning; render idioms, slang, sarcasm, wordplay, and cultural references naturally instead of calquing them. Other configured translation services receive the full current utterance and protected terms but may not accept conversation history or style instructions. Quality and idiom handling vary by provider and language pair; no automatic engine can guarantee a correct interpretation in every context. The selected translation provider may send transcript text to its service; local Whisper audio itself stays in the browser.
 
 File-based subtitle translation remains the synchronization-first path. It copies cue identifiers/timestamps unchanged, then applies the existing TokenShield, formatter, Polish preposition binding, register handling, and hard 42-CPL validation. The translation cache key includes a rules version so older cached literal brand translations are not reused after terminology changes.
 

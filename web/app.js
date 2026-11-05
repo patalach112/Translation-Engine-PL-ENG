@@ -879,7 +879,7 @@
       maxCpl = 42
     }) {
       const normalizedSubs = String(rawText).replace(/\r\n/g, "\n").trim();
-      const composite = `translation-v2|${videoKey}|${subtitleName}|${registerMode}|${maxCpl}|${normalizedSubs}`;
+      const composite = `translation-v3|${videoKey}|${subtitleName}|${registerMode}|${maxCpl}|${normalizedSubs}`;
       return `vtt_${hashFingerprint(composite)}`;
     }
 
@@ -1988,9 +1988,11 @@
               {
                 role: "system",
                 content:
-                  `Localize subtitles from ${sourceLang.toUpperCase()} to ${targetLang.toUpperCase()}. ` +
-                  `Translate meaning and speaker intent, not word-for-word; use natural, concise spoken language and adapt idioms instead of calquing them. ` +
-                  `Keep brand/product names and all tokens like ⟦T0⟧ exactly unchanged. Do not invent details. ${registerNote} Return ONLY the localized line.`
+                  `You are a professional audiovisual translator localizing subtitles from ${sourceLang.toUpperCase()} to ${targetLang.toUpperCase()}. ` +
+                  `Write fluent, idiomatic dialogue that sounds native in the target language; translate intended meaning, subtext, and speaker intent rather than copying source wording or syntax. ` +
+                  `Interpret idioms, slang, humor, sarcasm, wordplay, and cultural references in context; use a concise target-language equivalent when a literal rendering would confuse or mislead. ` +
+                  `Preserve character voice, politeness, emotion, factual meaning, and continuity with the recent cues. Adapt phrasing only as much as needed for naturalness; never add facts or explain the joke. ` +
+                  `Keep brand/product names and all tokens like ⟦T0⟧ exactly unchanged. Return only the localized subtitle text, with no quotation marks or commentary. ${registerNote}`
               },
               {
                 role: "user",

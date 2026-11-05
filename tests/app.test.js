@@ -19,6 +19,7 @@ const {
   visibleCharLength
 } = require("../web/app.js");
 const { normalizeLang, detectSourceLang, translateCue } = require("../scripts/headless-translator.js");
+const embedPlayer = require("../web/streampl-player.js");
 const audioSignalProcessor = require("../web/audio-signal-processor.js");
 const localWhisperProviderModule = require("../web/local-whisper-provider.js");
 const {
@@ -52,6 +53,22 @@ class FakeSpeechRecognition {
     });
   }
 }
+
+test("embeddable player normalizes all supported locales and rejects unsafe track entries", () => {
+  assert.deepEqual(embedPlayer.normalizeLanguages(), embedPlayer.DEFAULT_LANGUAGES);
+  assert.deepEqual(embedPlayer.normalizeLanguages("pl, ja, unknown,pl"), ["pl", "ja"]);
+  assert.deepEqual(embedPlayer.normalizeLanguages(["ar", "fa"]), ["ar", "fa"]);
+  assert.deepEqual(embedPlayer.normalizeTracks([
+    { language: "pl", src: "/captions/pl.vtt" },
+    { language: "en", label: "English", src: "https://cdn.example/en.vtt" },
+    { language: "pl", src: "" },
+    { src: "/missing-language.vtt" },
+    null
+  ]), [
+    { language: "pl", label: "Polski", src: "/captions/pl.vtt" },
+    { language: "en", label: "English", src: "https://cdn.example/en.vtt" }
+  ]);
+});
 
 test("live caption facade re-exports the focused signal and local ASR modules", () => {
   assert.equal(resampleAudioLinear, audioSignalProcessor.resampleAudioLinear);
@@ -497,7 +514,8 @@ test("OpenAI-compatible translation prompt localizes naturally and includes live
       history: [{ cueIndex: 1, sourceText: "We talked about the video.", translatedText: "Rozmawialiśmy o filmie." }]
     });
     assert.equal(result, "To było na YouTube Shorts.");
-    assert.match(requestBody.messages[0].content, /meaning and speaker intent, not word-for-word/i);
+    assert.match(requestBody.messages[0].content, /idiomatic dialogue that sounds native/i);
+    assert.match(requestBody.messages[0].content, /idioms, slang, humor, sarcasm, wordplay, and cultural references/i);
     assert.match(requestBody.messages[0].content, /⟦T0⟧/);
     assert.match(requestBody.messages[1].content, /Recent 5-cue context/);
     assert.match(requestBody.messages[1].content, /Rozmawialiśmy o filmie/);
