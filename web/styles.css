@@ -572,6 +572,15 @@ video::cue(i) {
   gap: 0.45rem;
   flex-wrap: wrap;
 }
+.video-volume-control { display: inline-flex; align-items: center; }
+.video-volume-control input[type="range"] {
+  width: 5.5rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+@media (max-width: 560px) {
+  .video-volume-control input[type="range"] { width: 4rem; }
+}
 
 /* Video Info Metadata Card */
 .video-meta-panel {

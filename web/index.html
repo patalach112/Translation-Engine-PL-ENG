@@ -157,6 +157,11 @@
             </div>
 
             <div class="player-aux-controls">
+              <button type="button" class="btn btn-xs" id="btn-video-sound" aria-controls="video-player" aria-pressed="true" data-i18n="videoSoundOn">Sound on</button>
+              <label class="video-volume-control">
+                <span class="visually-hidden" data-i18n="videoVolumeLabel">Video volume</span>
+                <input id="video-volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Video volume">
+              </label>
               <span id="cache-hit-badge" class="badge badge-success" hidden>
                 &#9889; <span data-i18n="badgeCached">Instant Cache</span>
               </span>

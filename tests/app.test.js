@@ -372,6 +372,9 @@ test("Production HTML includes SEO/OpenGraph/Twitter meta tags, prominent CC but
   assert.match(html, /id="live-caption-glossary"/);
   assert.match(html, /id="live-model-progress"/);
   assert.match(html, /id="btn-live-subtitle-file"/);
+  assert.match(html, /id="btn-video-sound"/);
+  assert.match(html, /id="video-volume" type="range"/);
+  assert.match(html, /<video id="video-player" controls preload="metadata" playsinline>/);
   assert.match(html, /value="onnx-community\/whisper-base"/);
   assert.match(html, /value="onnx-community\/whisper-small"/);
   assert.match(html, /\.ass,\.ssa/);

@@ -203,6 +203,9 @@
       navTagline: "Bilingual Video Hub • EN ⇄ PL",
       btnCreatorStudio: "Creator Studio",
       subtitlesLabel: "Subtitles:",
+      videoSoundOn: "Sound on",
+      videoSoundOff: "Sound off",
+      videoVolumeLabel: "Video volume",
       liveCaptionHeading: "Live audio captions",
       liveCaptionDescription: "For best sync, translate an anime subtitle file. Otherwise Whisper transcribes overlapping chunks, so live captions may arrive with a short delay.",
       liveCaptionIdle: "Not listening",
@@ -303,6 +306,9 @@
       navTagline: "Dwujęzyczna Platforma Wideo • PL ⇄ EN",
       btnCreatorStudio: "Panel Twórcy",
       subtitlesLabel: "Napisy:",
+      videoSoundOn: "Dźwięk włączony",
+      videoSoundOff: "Dźwięk wyłączony",
+      videoVolumeLabel: "Głośność wideo",
       liveCaptionHeading: "Napisy na żywo z dźwięku",
       liveCaptionDescription: "Najlepsza synchronizacja: przetłumacz plik napisów anime. W przeciwnym razie Whisper transkrybuje nakładające się fragmenty, więc napisy na żywo mogą być lekko opóźnione.",
       liveCaptionIdle: "Nie nasłuchuje",
@@ -2516,6 +2522,8 @@
     if (typeof document === "undefined") return;
     const videoEl = document.getElementById("video-player");
     if (!videoEl) return;
+    const btnVideoSound = document.getElementById("btn-video-sound");
+    const videoVolume = document.getElementById("video-volume");
 
     // Core DOM Elements — Public Streaming Hub
     const htmlRoot = document.documentElement;
@@ -2639,6 +2647,7 @@
     let liveCaptionRenderer = null;
     let liveFallbackToastShown = false;
     let liveGlossaryEntries = [];
+    let lastAudibleVolume = videoEl.volume > 0 ? videoEl.volume : 0.8;
     let liveStatusKey = "liveCaptionIdle";
     let liveEngine = null;
 
@@ -2756,6 +2765,7 @@
         btnLiveCaptions.textContent = LocalizationManager.t(uiLang, liveActive ? "btnStopListening" : "btnStartListening");
       }
       if (liveCaptionStatus) setLiveCaptionStatus(liveStatusKey, liveActive);
+      updateVideoSoundControls();
     }
 
     btnUiLang.addEventListener("click", () => {
@@ -2828,6 +2838,48 @@
         setAspectSkin(videoEl.videoHeight > videoEl.videoWidth ? "9:16" : "16:9");
       }
     });
+
+    function updateVideoSoundControls() {
+      if (!btnVideoSound) return;
+      const soundEnabled = !videoEl.muted && videoEl.volume > 0;
+      const labelKey = soundEnabled ? "videoSoundOn" : "videoSoundOff";
+      const soundLabel = LocalizationManager.t(uiLang, labelKey);
+      btnVideoSound.textContent = soundLabel;
+      btnVideoSound.title = soundLabel;
+      btnVideoSound.setAttribute("aria-label", soundLabel);
+      btnVideoSound.setAttribute("aria-pressed", String(soundEnabled));
+      if (videoVolume) {
+        videoVolume.value = String(videoEl.volume);
+        videoVolume.setAttribute("aria-label", LocalizationManager.t(uiLang, "videoVolumeLabel"));
+      }
+    }
+
+    if (btnVideoSound) {
+      btnVideoSound.addEventListener("click", () => {
+        const soundEnabled = !videoEl.muted && videoEl.volume > 0;
+        if (soundEnabled) {
+          lastAudibleVolume = videoEl.volume;
+          videoEl.muted = true;
+        } else {
+          if (videoEl.volume <= 0) videoEl.volume = lastAudibleVolume || 0.8;
+          videoEl.muted = false;
+        }
+        updateVideoSoundControls();
+      });
+    }
+    if (videoVolume) {
+      videoVolume.addEventListener("input", () => {
+        const volume = Math.max(0, Math.min(1, Number(videoVolume.value)));
+        videoEl.volume = volume;
+        if (volume > 0) {
+          lastAudibleVolume = volume;
+          videoEl.muted = false;
+        }
+        updateVideoSoundControls();
+      });
+    }
+    videoEl.addEventListener("volumechange", updateVideoSoundControls);
+    updateVideoSoundControls();
 
     /* ----------------------------------------------------------------------
      * Persistent Subtitle Track Selection & Native `<track>` Injection
