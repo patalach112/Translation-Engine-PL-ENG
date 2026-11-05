@@ -46,9 +46,9 @@
         "pa": "data/tracks/interview_pa.vtt",
         "tl": "data/tracks/interview_tl.vtt"
       },
-      "updatedAt": "2026-11-04T17:38:58.476Z",
+      "updatedAt": "2026-11-05T15:48:55.609Z",
       "sourceHash": "74140323425a370fbe0932e06672bc0ee2acff2da5b8cb9f6720a055c21cb4c4",
-      "trackBuildVersion": "4",
+      "trackBuildVersion": "5",
       "translationMode": "public-auto"
     },
     {
@@ -96,9 +96,9 @@
         "pa": "data/tracks/keynote_pa.vtt",
         "tl": "data/tracks/keynote_tl.vtt"
       },
-      "updatedAt": "2026-11-04T17:43:31.401Z",
+      "updatedAt": "2026-11-05T15:53:35.888Z",
       "sourceHash": "06e1ecf73d6d2a2774000938228b647f08a6ea9ac1c1aadae07b2d6a8933ce15",
-      "trackBuildVersion": "4",
+      "trackBuildVersion": "5",
       "translationMode": "public-auto"
     },
     {
@@ -146,11 +146,11 @@
         "pa": "data/tracks/vertical-short_pa.vtt",
         "tl": "data/tracks/vertical-short_tl.vtt"
       },
-      "updatedAt": "2026-11-04T17:44:52.419Z",
+      "updatedAt": "2026-11-05T15:55:12.396Z",
       "sourceHash": "27ad8d4366aa23a60c15560867f93f442ddcf9ac27790cc6ecf1cbb3b7b8ec99",
-      "trackBuildVersion": "4",
+      "trackBuildVersion": "5",
       "translationMode": "public-auto"
     }
   ],
-  "generatedAt": "2026-11-04T17:44:52.420Z"
+  "generatedAt": "2026-11-05T15:55:12.396Z"
 }
