@@ -11,12 +11,14 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const crypto = require("node:crypto");
+require("../web/live-caption-engine.js"); // Provides the shared glossary matcher in Node builds.
 const {
   SubtitleParser,
   TokenShield,
   TextFormatter,
   ClientTranslator,
   RollingContextWindow,
+  maskTranslationInput,
   PolishRegisterHarmonizer,
   SUPPORTED_LANGUAGES
 } = require("../web/app.js");
@@ -25,7 +27,7 @@ const ROOT = path.resolve(__dirname, "..");
 const LANGUAGES = SUPPORTED_LANGUAGES.map(language => language.code);
 const SUBTITLE_EXTENSIONS = new Set([".srt", ".vtt", ".ass", ".ssa"]);
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm"]);
-const BUILD_VERSION = "4";
+const BUILD_VERSION = "5";
 
 function parseArgs(argv) {
   const options = { input: "assets/raw", output: "web/data/tracks", catalog: "web/data/catalog.json", offline: false };
@@ -180,7 +182,7 @@ async function translateCue(text, source, target, offlineTranslator, offline, fa
   const { turns } = TokenShield.splitDialogueTurns(text);
   const translatedTurns = [];
   for (const turn of turns) {
-    const masked = TokenShield.mask(turn);
+    const masked = maskTranslationInput(turn);
     let translated;
     if (source === target) translated = masked.cleanText;
     else if (offline) translated = offlineTranslator.translateOffline(masked.cleanText, source, target, "auto");
@@ -201,7 +203,7 @@ async function translateCue(text, source, target, offlineTranslator, offline, fa
         translated = masked.cleanText;
       }
     }
-    translatedTurns.push(TokenShield.unmask(translated, masked));
+    translatedTurns.push(masked.restore(translated));
   }
   return translatedTurns.join("\n");
 }
@@ -376,4 +378,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { parseArgs, run, slugify, normalizeLang, detectSourceLang, translateGoogle };
+module.exports = { parseArgs, run, slugify, normalizeLang, detectSourceLang, translateGoogle, translateCue };

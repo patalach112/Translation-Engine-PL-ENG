@@ -873,7 +873,7 @@
       maxCpl = 42
     }) {
       const normalizedSubs = String(rawText).replace(/\r\n/g, "\n").trim();
-      const composite = `${videoKey}|${subtitleName}|${registerMode}|${maxCpl}|${normalizedSubs}`;
+      const composite = `translation-v2|${videoKey}|${subtitleName}|${registerMode}|${maxCpl}|${normalizedSubs}`;
       return `vtt_${hashFingerprint(composite)}`;
     }
 
@@ -2213,6 +2213,23 @@
     return Array.from(entries.values());
   }
 
+  function maskTranslationInput(text, customEntries = []) {
+    const glossaryApi = typeof globalThis !== "undefined" ? globalThis.LiveCaptionEngine : null;
+    if (!glossaryApi || !glossaryApi.GlossaryLexicon) {
+      const tokenState = TokenShield.mask(text);
+      return { cleanText: tokenState.cleanText, restore: (translated) => TokenShield.unmask(translated, tokenState) };
+    }
+    const glossary = new glossaryApi.GlossaryLexicon(mergeLiveGlossaryEntries(customEntries));
+    const protectedState = glossary.protect(text);
+    const tokenState = TokenShield.mask(protectedState.text);
+    return {
+      cleanText: tokenState.cleanText,
+      restore(translated) {
+        return glossary.restore(TokenShield.unmask(translated, tokenState), protectedState);
+      }
+    };
+  }
+
   async function translateLiveTranscript(text, sourceLang, targetLang, translator, glossaryEntries = [], registerMode = "auto") {
     const source = String(sourceLang || "").trim();
     const target = String(targetLang || "").trim();
@@ -2221,13 +2238,7 @@
     }
     const transcript = String(text || "").trim();
     if (!transcript) return { text: "", providerUsed: "none" };
-    const glossaryApi = typeof globalThis !== "undefined" ? globalThis.LiveCaptionEngine : null;
-    const effectiveEntries = mergeLiveGlossaryEntries(glossaryEntries);
-    const glossary = glossaryApi && glossaryApi.GlossaryLexicon
-      ? new glossaryApi.GlossaryLexicon(effectiveEntries)
-      : null;
-    const protectedTerms = glossary ? glossary.protect(transcript) : { text: transcript, tokens: [] };
-    const shield = TokenShield.mask(protectedTerms.text);
+    const shield = maskTranslationInput(transcript, glossaryEntries);
     const engine = translator || new ClientTranslator();
     const mode = registerMode || "auto";
     if (!(engine.liveContext instanceof RollingContextWindow) || engine.liveContext.mode !== mode) {
@@ -2235,8 +2246,7 @@
     }
     const context = engine.liveContext.evaluate(transcript);
     const maskedTranslation = await engine.translateSegment(shield.cleanText, source, target, context);
-    const restoredTranslation = TokenShield.unmask(maskedTranslation, shield);
-    const finalTranslation = glossary ? glossary.restore(restoredTranslation, protectedTerms) : restoredTranslation;
+    const finalTranslation = shield.restore(maskedTranslation);
     const formatted = TextFormatter.formatCueText(finalTranslation, { maxCpl: 42, lang: target });
     engine.liveCueIndex = (engine.liveCueIndex || 0) + 1;
     engine.liveContext.push(engine.liveCueIndex, transcript, formatted, context.activeRegister);
@@ -2346,14 +2356,14 @@
       const translatedTurns = [];
 
       for (const turn of turns) {
-        const masked = TokenShield.mask(turn);
+        const masked = maskTranslationInput(turn);
         const rawTarget = await translator.translateSegment(
           masked.cleanText,
           detectedLang,
           targetLang,
           contextEval
         );
-        const restored = TokenShield.unmask(rawTarget, masked);
+        const restored = masked.restore(rawTarget);
         translatedTurns.push(restored);
       }
 
@@ -2466,11 +2476,11 @@
       const { turns } = TokenShield.splitDialogueTurns(cue.text);
       const restoredTurns = [];
       for (const turn of turns) {
-        const masked = TokenShield.mask(turn);
+        const masked = maskTranslationInput(turn);
         const translated = await translator.translateSegment(
           masked.cleanText, sourceLang, targetLang, contextEval
         );
-        restoredTurns.push(TokenShield.unmask(translated, masked));
+        restoredTurns.push(masked.restore(translated));
       }
       let translatedText = restoredTurns.join("\n");
       if (targetLang === "pl") {
@@ -3959,6 +3969,7 @@
     translateSubtitlePayload,
     translateSubtitleToLanguage,
     translateLiveTranscript,
+    maskTranslationInput,
     visibleCharLength
   };
 });

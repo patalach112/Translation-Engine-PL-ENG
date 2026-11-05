@@ -18,7 +18,7 @@ const {
   translateLiveTranscript,
   visibleCharLength
 } = require("../web/app.js");
-const { normalizeLang, detectSourceLang } = require("../scripts/headless-translator.js");
+const { normalizeLang, detectSourceLang, translateCue } = require("../scripts/headless-translator.js");
 const {
   LiveCaptionEngine,
   CaptionOverlayRenderer,
@@ -390,6 +390,42 @@ test("Generic language translator creates timestamp-preserving tracks for any su
   assert.ok(result.vtt.includes("00:00:01.200 --> 00:00:03.500"));
   assert.ok(result.vtt.includes("<i>こんにちは Hello, world.</i>"));
   assert.deepEqual(SubtitleParser.validateWebVTT(result.vtt, result.doc, 42), []);
+});
+
+test("Built-in product terminology is protected in full subtitle-file translations", async () => {
+  const translator = {
+    lastUsedProvider: "terminology-mock",
+    resetCircuit() {},
+    async translateSegment(text, source, target) {
+      assert.equal(source, "en");
+      assert.equal(target, "pl");
+      assert.match(text, /⟦T0⟧/);
+      assert.doesNotMatch(text, /YouTube/i);
+      return "Lubię ⟦T0⟧.";
+    }
+  };
+  const source = ["1", "00:00:01,200 --> 00:00:03,500", "I watch youtube shorts every day."].join("\n");
+  const result = await translateSubtitleToLanguage(source, "pl", { sourceLang: "en", translator });
+  assert.ok(result.vtt.includes("Lubię YouTube Shorts."));
+  assert.ok(result.vtt.includes("00:00:01.200 --> 00:00:03.500"));
+});
+
+test("Headless cue translation shares platform-name protection with the browser", async () => {
+  let maskedText = "";
+  const offlineTranslator = {
+    translateOffline(text, source, target) {
+      assert.equal(source, "en");
+      assert.equal(target, "pl");
+      maskedText = text;
+      return "Na ⟦T0⟧.";
+    }
+  };
+  const translated = await translateCue(
+    "I saw it on youtube shorts.", "en", "pl", offlineTranslator, true, new Set()
+  );
+  assert.match(maskedText, /⟦T0⟧/);
+  assert.doesNotMatch(maskedText, /YouTube/i);
+  assert.equal(translated, "Na YouTube Shorts.");
 });
 
 test("Live speech transcripts translate from Japanese into a selected subtitle language", async () => {
